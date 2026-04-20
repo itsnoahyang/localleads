@@ -43,6 +43,8 @@
 
     /* ── Left panel ── */
     .left { display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow: hidden; }
+    .col-sec { flex-shrink: 0; }
+    #sec-location { flex-shrink: 0; min-height: 80px; overflow: hidden; }
 
     /* Collapsible section chrome */
     .col-sec { border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -295,6 +297,13 @@
     .instr-mockup-cap { padding: 8px 12px; background: rgba(255,255,255,0.03); border-top: 1px solid var(--border); font-size: 12px; color: var(--muted2); }
     .instr-mockup-cap strong { color: var(--text); }
 
+    /* ── Resize handles ── */
+    .resize-handle { height: 5px; background: transparent; cursor: ns-resize; flex-shrink: 0; position: relative; z-index: 10; transition: background .15s; }
+    .resize-handle::after { content: ''; position: absolute; left: 50%; transform: translateX(-50%); top: 2px; width: 32px; height: 1px; background: var(--border2); border-radius: 2px; transition: background .15s, width .15s; }
+    .resize-handle:hover::after, .resize-handle.dragging::after { background: var(--accent); width: 48px; }
+    .left { user-select: none; }
+    .left.dragging { cursor: ns-resize; }
+
     /* ── Nav link style ── */
     .nav-link { padding: 6px 12px; border-radius: 6px; border: none; background: transparent; color: var(--muted2); cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
     .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.04); }
@@ -479,8 +488,11 @@
       </div>
     </div>
 
+    <!-- resize handle 1 -->
+    <div class="resize-handle" id="rh-1"></div>
+
     <!-- 2. Location -->
-    <div class="loc-section">
+    <div class="loc-section" id="sec-location">
       <div class="col-header static">
         <span class="col-title">Location</span>
         <span class="col-badge hidden" id="badge-location"></span>
@@ -501,6 +513,9 @@
         <div class="region-grid" id="region-grid"></div>
       </div>
     </div>
+
+    <!-- resize handle 2 -->
+    <div class="resize-handle" id="rh-2"></div>
 
     <!-- 3. Specific Location (collapsible) -->
     <div class="col-sec" id="sec-specific">
@@ -1698,6 +1713,59 @@ function runEnrichment() {
     filterResults();
   }, 2200);
 }
+
+// ── Panel resize ─────────────────────────────────────────────────────────────
+(function () {
+  const MIN = 80;
+
+  function initHandle(handleId, topId, botId, topBodyId, botBodyId) {
+    const handle = document.getElementById(handleId);
+    const topEl  = document.getElementById(topId);
+    const botEl  = document.getElementById(botId);
+    const left   = topEl.closest('.left');
+
+    let startY, startTopH, startBotH;
+
+    handle.addEventListener('mousedown', e => {
+      e.preventDefault();
+      startY    = e.clientY;
+      startTopH = topEl.getBoundingClientRect().height;
+      startBotH = botEl.getBoundingClientRect().height;
+      handle.classList.add('dragging');
+      left.classList.add('dragging');
+
+      function onMove(e) {
+        const dy = e.clientY - startY;
+        const newTop = Math.max(MIN, startTopH + dy);
+        const newBot = Math.max(MIN, startBotH - dy);
+        topEl.style.height = newTop + 'px';
+        botEl.style.height = newBot + 'px';
+        // Keep col-body max-height in sync for collapsible sections
+        if (topBodyId) {
+          const bodyEl = document.getElementById(topBodyId);
+          if (bodyEl) bodyEl.style.maxHeight = (newTop - 40) + 'px';
+        }
+        if (botBodyId) {
+          const bodyEl = document.getElementById(botBodyId);
+          if (bodyEl) bodyEl.style.maxHeight = (newBot - 40) + 'px';
+        }
+      }
+
+      function onUp() {
+        handle.classList.remove('dragging');
+        left.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  }
+
+  initHandle('rh-1', 'sec-niches',   'sec-location', 'body-niches', null);
+  initHandle('rh-2', 'sec-location', 'sec-specific', null, 'body-specific');
+})();
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 renderNiches();
