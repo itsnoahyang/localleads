@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LocalLeads</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -304,8 +304,8 @@
     /* ── Auth screen ── */
     #auth-screen { display: none; min-height: 100vh; align-items: center; justify-content: center; background: var(--bg); }
     #auth-screen.visible { display: flex; }
-    #app { display: none; flex-direction: column; height: 100vh; overflow: hidden; }
-    #app.visible { display: flex; }
+    #app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    #app.hidden { display: none; }
     .auth-card { background: var(--surface); border: 1px solid var(--border2); border-radius: 18px; padding: 36px 40px; width: 100%; max-width: 400px; box-shadow: 0 24px 64px rgba(0,0,0,.5); }
     .auth-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; margin-bottom: 28px; justify-content: center; }
     .auth-logo .logo-icon { width: 34px; height: 34px; background: linear-gradient(135deg, var(--accent), #a855f7); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
@@ -1717,12 +1717,10 @@ let _pendingVerifyEmail = '';
 // ── Boot: check session ──────────────────────────────────────────────────────
 const _supabaseReady = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
 
-(async () => {
+window.addEventListener('DOMContentLoaded', async () => {
   if (!_supabaseReady) {
-    // Supabase not configured yet — show app in demo mode
     document.getElementById('nav-user-email').textContent = 'demo@localleads.co';
-    showApp({ email: 'demo@localleads.co' });
-    return;
+    return; // #app is visible by default
   }
   try {
     const { data: { session } } = await _sb.auth.getSession();
@@ -1735,16 +1733,16 @@ const _supabaseReady = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY
   } catch (e) {
     showAuthScreen();
   }
-})();
+});
 
 function showApp(user) {
   document.getElementById('auth-screen').classList.remove('visible');
-  document.getElementById('app').classList.add('visible');
+  document.getElementById('app').classList.remove('hidden');
   document.getElementById('nav-user-email').textContent = user.email;
 }
 
 function showAuthScreen() {
-  document.getElementById('app').classList.remove('visible');
+  document.getElementById('app').classList.add('hidden');
   document.getElementById('auth-screen').classList.add('visible');
 }
 
