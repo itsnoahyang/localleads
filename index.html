@@ -1,0 +1,1959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LocalLeads</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #020817;
+      --surface:   #0f172a;
+      --border:    #1e293b;
+      --border2:   #334155;
+      --accent:    #6366f1;
+      --accent-h:  #818cf8;
+      --accent-bg: rgba(99,102,241,0.10);
+      --green:     #22c55e;
+      --green-bg:  rgba(34,197,94,0.08);
+      --text:      #f1f5f9;
+      --muted:     #64748b;
+      --muted2:    #94a3b8;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; min-height: 100vh; }
+
+    /* ── Nav ── */
+    .nav { display: flex; align-items: center; justify-content: space-between; padding: 0 28px; height: 58px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 200; }
+    .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: -0.3px; }
+    .logo-icon { width: 30px; height: 30px; background: linear-gradient(135deg, var(--accent), #a855f7); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .nav-right { display: flex; align-items: center; gap: 12px; }
+    .nav-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--muted2); cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
+    .nav-btn:hover { color: var(--text); }
+    .nav-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .nav-btn.primary:hover { background: var(--accent-h); }
+
+    /* ── Views ── */
+    .view { display: none; height: calc(100vh - 58px); }
+    .view.active { display: flex; }
+
+    /* ── CONFIG VIEW ── */
+    #view-config { overflow: hidden; }
+    .page { display: grid; grid-template-columns: 1fr 340px; height: 100%; overflow: hidden; width: 100%; }
+
+    /* ── Left panel ── */
+    .left { display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow: hidden; }
+
+    /* Collapsible section chrome */
+    .col-sec { border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .col-header { display: flex; align-items: center; gap: 7px; padding: 0 20px; min-height: 40px; cursor: pointer; user-select: none; transition: background .12s; }
+    .col-header:hover { background: rgba(255,255,255,0.02); }
+    .col-header.static { cursor: default; }
+    .col-header.static:hover { background: transparent; }
+    .col-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+    .col-badge { font-size: 10px; font-weight: 600; background: var(--accent-bg); color: var(--accent-h); border: 1px solid rgba(99,102,241,.3); border-radius: 4px; padding: 1px 7px; white-space: nowrap; }
+    .col-badge.hidden { display: none; }
+    .col-spacer { flex: 1; }
+    .sec-micro { font-size: 11px; color: var(--muted); cursor: pointer; padding: 2px 7px; border-radius: 4px; border: 1px solid var(--border2); background: transparent; font-weight: 500; transition: all .12s; }
+    .sec-micro:hover { color: var(--text); border-color: var(--accent); }
+    .col-chevron { color: var(--muted); transition: transform .2s ease; flex-shrink: 0; }
+    .col-sec.collapsed .col-chevron { transform: rotate(-90deg); }
+    .col-body { overflow: hidden; transition: max-height .22s ease; }
+    .col-sec.collapsed .col-body { max-height: 0 !important; }
+    .niche-inner { padding: 2px 20px 14px; }
+    .specific-inner { padding: 8px 20px 14px; }
+
+    /* Niche pills */
+    .niche-scroll { max-height: 180px; overflow-y: auto; }
+    .niche-scroll::-webkit-scrollbar { width: 3px; }
+    .niche-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+    .niche-group { margin-bottom: 10px; }
+    .niche-group-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--border2); margin-bottom: 6px; }
+    .niche-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+    .niche-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--muted2); cursor: pointer; font-size: 12px; font-weight: 500; transition: all .12s; white-space: nowrap; user-select: none; }
+    .niche-pill:hover { border-color: var(--accent); color: var(--text); }
+    .niche-pill.active { background: var(--accent-bg); border-color: rgba(99,102,241,.45); color: var(--accent-h); }
+    .niche-pill .ni { font-size: 13px; }
+
+    /* Location section */
+    .loc-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-bottom: 1px solid var(--border); min-height: 120px; }
+    .country-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 0 20px 10px; }
+    .country-btn { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border2); background: transparent; color: var(--muted2); cursor: pointer; font-size: 13px; font-weight: 600; transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .country-btn.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent-h); }
+    .country-btn:hover:not(.active) { color: var(--text); }
+    .filter-row { padding: 0 20px 8px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .filter-input { flex: 1; background: var(--surface); border: 1px solid var(--border2); border-radius: 7px; padding: 7px 12px 7px 32px; color: var(--text); font-size: 13px; outline: none; transition: border-color .15s; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 10px center; }
+    .filter-input::placeholder { color: var(--muted); }
+    .filter-input:focus { border-color: var(--accent); }
+    .state-grid { flex: 1; overflow-y: auto; padding: 0 16px 8px; }
+    .state-grid::-webkit-scrollbar { width: 4px; }
+    .state-grid::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+    .region-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .region-grid.single-col { grid-template-columns: 1fr; }
+    .region-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 7px; border: 1px solid transparent; cursor: pointer; transition: all .12s; user-select: none; }
+    .region-row:hover { background: var(--surface); border-color: var(--border); }
+    .region-row.checked { background: var(--accent-bg); border-color: rgba(99,102,241,.3); }
+    .region-check { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+    .region-name { font-size: 12px; color: var(--muted2); flex: 1; transition: color .1s; }
+    .region-row.checked .region-name { color: var(--text); }
+    .region-count { font-size: 10px; color: var(--muted); white-space: nowrap; }
+    .no-results { text-align: center; padding: 24px 16px; color: var(--muted); font-size: 13px; grid-column: 1 / -1; }
+
+    /* Specific location */
+    .opt-badge { font-size: 10px; background: var(--accent-bg); color: var(--accent-h); border: 1px solid rgba(99,102,241,.3); border-radius: 4px; padding: 1px 6px; font-weight: 600; }
+    .location-input { width: 100%; background: var(--bg); border: 1px solid var(--border2); border-radius: 8px; padding: 8px 12px 8px 32px; color: var(--text); font-size: 13px; outline: none; transition: border-color .15s; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z'/%3E%3Ccircle cx='12' cy='10' r='3'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 10px center; }
+    .location-input::placeholder { color: var(--muted); }
+    .location-input:focus { border-color: var(--accent); }
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px 3px 10px; border-radius: 6px; background: var(--accent-bg); border: 1px solid rgba(99,102,241,.3); font-size: 11px; color: var(--accent-h); font-weight: 500; }
+    .chip-remove { background: none; border: none; color: var(--muted2); cursor: pointer; font-size: 14px; line-height: 1; padding: 0; display: flex; align-items: center; transition: color .1s; }
+    .chip-remove:hover { color: #ef4444; }
+
+    /* Autocomplete dropdown */
+    .ac-dropdown { position: fixed; z-index: 9999; background: var(--surface); border: 1px solid var(--border2); border-radius: 9px; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.6); display: none; min-width: 200px; }
+    .ac-dropdown.open { display: block; }
+    .ac-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; cursor: pointer; transition: background .1s; }
+    .ac-item:hover, .ac-item.focused { background: var(--accent-bg); }
+    .ac-icon { font-size: 13px; flex-shrink: 0; opacity: .7; }
+    .ac-main { flex: 1; min-width: 0; }
+    .ac-name { font-size: 13px; color: var(--text); font-weight: 500; }
+    .ac-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .ac-type { font-size: 10px; color: var(--muted); background: var(--border); border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+    .ac-footer { padding: 6px 14px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+
+    /* Right panel */
+    .right { display: flex; flex-direction: column; overflow-y: auto; background: var(--surface); }
+    .right::-webkit-scrollbar { width: 4px; }
+    .right::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+    .right-section { padding: 18px 20px 0; }
+    .section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin-bottom: 12px; }
+    .summary-box { background: var(--bg); border: 1px solid var(--border2); border-radius: 10px; padding: 12px 14px; }
+    .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+    .summary-row + .summary-row { border-top: 1px solid var(--border); }
+    .summary-label { color: var(--muted2); font-size: 12px; }
+    .summary-val { font-weight: 600; font-size: 12px; color: var(--text); }
+    .summary-val.accent { color: var(--accent-h); }
+    .divider { height: 1px; background: var(--border); margin: 18px 0 0; }
+    .config-group { margin-bottom: 12px; }
+    .config-label { display: block; font-size: 12px; font-weight: 500; color: var(--muted2); margin-bottom: 5px; }
+    .config-input { width: 100%; background: var(--bg); border: 1px solid var(--border2); border-radius: 7px; padding: 8px 12px; color: var(--text); font-size: 13px; outline: none; transition: border-color .15s; }
+    .config-input:focus { border-color: var(--accent); }
+    .config-hint { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .cost-card { background: var(--bg); border: 1px solid var(--border2); border-radius: 10px; padding: 14px; }
+    .cost-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border); }
+    .cost-row:last-of-type { border-bottom: none; }
+    .cost-label { color: var(--muted2); font-size: 12px; }
+    .cost-val { font-size: 12px; font-weight: 500; color: var(--muted2); }
+    .cost-total-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0 0; margin-top: 8px; border-top: 1px solid var(--border2); }
+    .cost-total-label { font-weight: 600; font-size: 14px; }
+    .cost-total-val { font-weight: 700; font-size: 22px; color: var(--green); }
+    .cost-note { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.55; }
+    .credit-bar-wrap { margin-top: 10px; }
+    .credit-bar-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .credit-bar-track { height: 5px; background: var(--border2); border-radius: 3px; overflow: hidden; }
+    .credit-bar-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width .3s; max-width: 100%; }
+    .credit-bar-fill.warning { background: #f59e0b; }
+    .credit-bar-fill.danger  { background: #ef4444; }
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-green { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,.2); }
+    .run-section { padding: 18px 20px; margin-top: auto; }
+    .run-btn { width: 100%; padding: 13px; background: linear-gradient(135deg, var(--accent), #7c3aed); border: none; border-radius: 9px; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity .15s, transform .1s; letter-spacing: .2px; }
+    .run-btn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
+    .run-btn:disabled { background: var(--border2); color: var(--muted); cursor: not-allowed; }
+    .run-sub { text-align: center; font-size: 11px; color: var(--muted); margin-top: 7px; line-height: 1.4; }
+
+    /* ── PROGRESS VIEW ── */
+    #view-progress { align-items: center; justify-content: center; flex-direction: column; background: var(--bg); }
+    .prog-card { width: min(700px, 94vw); background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; padding: 32px; }
+    .prog-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .prog-title { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .prog-spinner { width: 20px; height: 20px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .prog-cancel { padding: 7px 14px; border-radius: 7px; border: 1px solid var(--border2); background: transparent; color: var(--muted2); cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
+    .prog-cancel:hover { color: #ef4444; border-color: #ef4444; }
+    .prog-bar-wrap { margin-bottom: 6px; }
+    .prog-bar-track { height: 8px; background: var(--border2); border-radius: 6px; overflow: hidden; }
+    .prog-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #a855f7); border-radius: 6px; transition: width .4s ease; width: 0%; }
+    .prog-bar-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 12px; color: var(--muted); }
+    .prog-pct { font-size: 28px; font-weight: 800; color: var(--text); letter-spacing: -1px; }
+    .prog-current { margin: 16px 0; padding: 12px 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+    .prog-current-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 4px; }
+    .prog-current-val { font-size: 14px; color: var(--text); font-weight: 500; }
+    .prog-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .prog-stat { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+    .prog-stat-val { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -.5px; }
+    .prog-stat-val.green { color: var(--green); }
+    .prog-stat-val.accent { color: var(--accent-h); }
+    .prog-stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .prog-feed-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 8px; }
+    .prog-feed { display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow: hidden; }
+    .feed-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: var(--bg); border-radius: 7px; border: 1px solid var(--border); font-size: 12px; animation: feedIn .25s ease; }
+    @keyframes feedIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+    .feed-name { font-weight: 500; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .feed-loc  { color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .feed-stars { color: #fbbf24; white-space: nowrap; font-size: 11px; }
+    .prog-done-btn { width: 100%; margin-top: 20px; padding: 13px; background: linear-gradient(135deg, var(--green), #16a34a); border: none; border-radius: 9px; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity .15s; display: none; }
+    .prog-done-btn.visible { display: block; }
+    .prog-done-btn:hover { opacity: .9; }
+
+    /* ── RESULTS VIEW ── */
+    #view-results { flex-direction: column; overflow: hidden; }
+    .results-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+    .results-back { display: flex; align-items: center; gap: 6px; color: var(--muted2); cursor: pointer; font-size: 13px; font-weight: 500; background: transparent; border: 1px solid var(--border2); border-radius: 7px; padding: 6px 12px; transition: all .15s; }
+    .results-back:hover { color: var(--text); border-color: var(--accent); }
+    .results-stats { display: flex; align-items: center; gap: 16px; flex: 1; }
+    .results-stat { font-size: 13px; }
+    .results-stat strong { color: var(--text); font-weight: 700; }
+    .results-stat span { color: var(--muted); }
+    .results-actions { display: flex; align-items: center; gap: 8px; }
+    .dl-btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 7px; background: var(--green); border: none; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+    .dl-btn:hover { opacity: .87; }
+    .enrich-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .enrich-btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 7px; background: transparent; border: 1px solid var(--accent); color: var(--accent-h); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; white-space: nowrap; }
+    .enrich-btn:hover:not(:disabled) { background: var(--accent-bg); }
+    .enrich-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .enrich-btn.running { opacity: .7; cursor: not-allowed; }
+    .enrich-learn { font-size: 11px; color: var(--muted); cursor: pointer; background: none; border: none; text-decoration: underline; text-underline-offset: 2px; transition: color .15s; padding: 0; }
+    .enrich-learn:hover { color: var(--muted2); }
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 5000; display: flex; align-items: center; justify-content: center; }
+    .modal-overlay.hidden { display: none; }
+    .modal-box { background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; padding: 24px 26px; max-width: 420px; width: calc(100% - 40px); box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+    .modal-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .modal-body { font-size: 13px; color: var(--muted2); line-height: 1.75; }
+    .modal-body strong { color: var(--text); font-weight: 600; }
+    .modal-footer { margin-top: 18px; display: flex; justify-content: flex-end; }
+    .modal-close { padding: 7px 18px; border-radius: 7px; border: 1px solid var(--border2); background: transparent; color: var(--muted2); cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
+    .modal-close:hover { color: var(--text); border-color: var(--accent); }
+    .results-filters { padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .res-search { flex: 1; background: var(--bg); border: 1px solid var(--border2); border-radius: 7px; padding: 7px 12px 7px 32px; color: var(--text); font-size: 13px; outline: none; transition: border-color .15s; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 10px center; max-width: 280px; }
+    .res-search::placeholder { color: var(--muted); }
+    .res-search:focus { border-color: var(--accent); }
+    .res-select { background: var(--bg); border: 1px solid var(--border2); border-radius: 7px; padding: 7px 10px; color: var(--muted2); font-size: 13px; outline: none; cursor: pointer; }
+    .results-body { flex: 1; overflow-y: auto; }
+    .results-body::-webkit-scrollbar { width: 5px; }
+    .results-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+    .res-table { width: 100%; border-collapse: collapse; }
+    .res-table th { position: sticky; top: 0; background: var(--surface); border-bottom: 1px solid var(--border2); padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); white-space: nowrap; cursor: pointer; user-select: none; }
+    .res-table th:hover { color: var(--text); }
+    .res-table th.sorted { color: var(--accent-h); }
+    .res-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+    .res-table tr:hover td { background: rgba(99,102,241,0.04); }
+    .td-name { font-weight: 600; color: var(--text); }
+    .td-niche { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; background: var(--accent-bg); color: var(--accent-h); font-size: 11px; font-weight: 600; border: 1px solid rgba(99,102,241,.25); white-space: nowrap; }
+    .td-link { color: var(--accent-h); text-decoration: none; font-size: 12px; }
+    .td-link:hover { text-decoration: underline; }
+    .td-rating { display: flex; align-items: center; gap: 4px; }
+    .td-stars { color: #fbbf24; font-size: 12px; }
+    .td-rating-val { font-weight: 600; color: var(--text); font-size: 13px; }
+    .td-reviews { color: var(--muted); font-size: 12px; }
+    .td-muted { color: var(--muted2); font-size: 12px; }
+    .no-data { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 14px; }
+    .results-count { padding: 8px 24px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+
+    /* ── INSTRUCTIONS VIEW ── */
+    #view-instructions { flex-direction: column; overflow-y: auto; background: var(--bg); }
+    #view-instructions::-webkit-scrollbar { width: 5px; }
+    #view-instructions::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+    .instr-wrap { max-width: 700px; margin: 0 auto; padding: 48px 24px 80px; width: 100%; }
+    .instr-hero { text-align: center; margin-bottom: 44px; }
+    .instr-hero-badge { display: inline-block; background: var(--accent-bg); border: 1px solid rgba(99,102,241,.3); color: var(--accent-h); font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; margin-bottom: 16px; }
+    .instr-hero h1 { font-size: 26px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 12px; line-height: 1.25; }
+    .instr-hero p { color: var(--muted2); font-size: 14px; line-height: 1.7; max-width: 460px; margin: 0 auto; }
+    .instr-section { margin-bottom: 12px; border: 1px solid var(--border2); border-radius: 14px; overflow: hidden; background: var(--surface); }
+    .instr-sec-header { display: flex; align-items: center; gap: 14px; padding: 18px 22px; cursor: pointer; user-select: none; transition: background .12s; }
+    .instr-sec-header:hover { background: rgba(255,255,255,0.02); }
+    .instr-step-num { width: 32px; height: 32px; border-radius: 50%; background: var(--accent-bg); border: 1px solid rgba(99,102,241,.35); color: var(--accent-h); font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .instr-step-num.done { background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,.3); color: var(--green); }
+    .instr-sec-title { font-size: 15px; font-weight: 700; color: var(--text); flex: 1; }
+    .instr-sec-subtitle { font-size: 12px; color: var(--muted); }
+    .instr-sec-chevron { color: var(--muted); transition: transform .2s ease; flex-shrink: 0; }
+    .instr-section.open .instr-sec-chevron { transform: rotate(180deg); }
+    .instr-sec-body { display: none; padding: 0 22px 22px; }
+    .instr-section.open .instr-sec-body { display: block; }
+    .instr-text { font-size: 14px; color: var(--muted2); line-height: 1.75; margin-bottom: 14px; }
+    .instr-text strong { color: var(--text); font-weight: 600; }
+    .instr-steps { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+    .instr-steps li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--muted2); line-height: 1.6; }
+    .instr-step-dot { width: 20px; height: 20px; border-radius: 50%; background: var(--border2); color: var(--muted2); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .instr-callout { background: var(--bg); border: 1px solid var(--border2); border-left: 3px solid var(--accent); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; font-size: 13px; color: var(--muted2); line-height: 1.6; }
+    .instr-callout.green { border-left-color: var(--green); }
+    .instr-callout strong { color: var(--text); font-weight: 600; }
+    .instr-link { color: var(--accent-h); text-decoration: none; font-weight: 500; }
+    .instr-link:hover { text-decoration: underline; }
+    .instr-cta { margin-top: 36px; text-align: center; background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; padding: 32px 24px; }
+    .instr-cta h3 { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+    .instr-cta p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    .instr-cta-btn { display: inline-block; padding: 13px 28px; background: linear-gradient(135deg, var(--accent), #7c3aed); border: none; border-radius: 9px; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity .15s; letter-spacing: .2px; }
+    .instr-cta-btn:hover { opacity: .9; }
+
+    /* ── Mockup visual guide ── */
+    .instr-visual-guide { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px; }
+    .instr-visual-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin-bottom: 12px; }
+    .instr-mockup-wrap { margin-bottom: 12px; border-radius: 9px; overflow: hidden; border: 1px solid var(--border2); }
+    .instr-mockup-wrap svg { display: block; width: 100%; height: auto; }
+    .instr-mockup-cap { padding: 8px 12px; background: rgba(255,255,255,0.03); border-top: 1px solid var(--border); font-size: 12px; color: var(--muted2); }
+    .instr-mockup-cap strong { color: var(--text); }
+
+    /* ── Nav link style ── */
+    .nav-link { padding: 6px 12px; border-radius: 6px; border: none; background: transparent; color: var(--muted2); cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
+    .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .nav-link.active { color: var(--text); }
+    .nav-sep { width: 1px; height: 18px; background: var(--border2); }
+
+    /* ── Auth screen ── */
+    #auth-screen { display: none; min-height: 100vh; align-items: center; justify-content: center; background: var(--bg); }
+    #auth-screen.visible { display: flex; }
+    #app { display: none; flex-direction: column; height: 100vh; overflow: hidden; }
+    #app.visible { display: flex; }
+    .auth-card { background: var(--surface); border: 1px solid var(--border2); border-radius: 18px; padding: 36px 40px; width: 100%; max-width: 400px; box-shadow: 0 24px 64px rgba(0,0,0,.5); }
+    .auth-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; margin-bottom: 28px; justify-content: center; }
+    .auth-logo .logo-icon { width: 34px; height: 34px; background: linear-gradient(135deg, var(--accent), #a855f7); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .auth-tabs { display: flex; gap: 4px; background: var(--bg); border-radius: 9px; padding: 4px; margin-bottom: 24px; }
+    .auth-tab { flex: 1; padding: 8px; border-radius: 6px; border: none; background: transparent; color: var(--muted2); cursor: pointer; font-size: 13px; font-weight: 600; transition: all .15s; }
+    .auth-tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+    .auth-form { display: none; flex-direction: column; gap: 14px; }
+    .auth-form.visible { display: flex; }
+    .auth-label { font-size: 12px; font-weight: 600; color: var(--muted2); margin-bottom: 5px; display: block; }
+    .auth-input { width: 100%; background: var(--bg); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; transition: border-color .15s; }
+    .auth-input:focus { border-color: var(--accent); }
+    .auth-input::placeholder { color: var(--muted); }
+    .auth-submit { width: 100%; padding: 11px; border-radius: 8px; border: none; background: var(--accent); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity .15s; margin-top: 4px; }
+    .auth-submit:hover { opacity: .88; }
+    .auth-submit:disabled { opacity: .5; cursor: not-allowed; }
+    .auth-error { font-size: 12px; color: #f87171; background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.2); border-radius: 7px; padding: 9px 12px; display: none; }
+    .auth-error.visible { display: block; }
+    .auth-success { font-size: 12px; color: var(--green); background: var(--green-bg); border: 1px solid rgba(34,197,94,.2); border-radius: 7px; padding: 9px 12px; display: none; }
+    .auth-success.visible { display: block; }
+    .auth-sub { font-size: 12px; color: var(--muted); text-align: center; margin-top: 4px; }
+    .auth-sub a { color: var(--accent-h); cursor: pointer; text-decoration: none; }
+    .auth-sub a:hover { text-decoration: underline; }
+    .auth-verify-head { text-align: center; margin-bottom: 8px; }
+    .auth-verify-head h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+    .auth-verify-head p { font-size: 13px; color: var(--muted2); line-height: 1.6; }
+    .auth-otp { display: flex; gap: 8px; justify-content: center; margin: 4px 0; }
+    .auth-otp input { width: 44px; height: 52px; background: var(--bg); border: 1px solid var(--border2); border-radius: 9px; color: var(--text); font-size: 22px; font-weight: 700; text-align: center; outline: none; transition: border-color .15s; }
+    .auth-otp input:focus { border-color: var(--accent); }
+
+    /* ── API Key modal ── */
+    .apikey-field { display: flex; gap: 8px; align-items: center; }
+    .apikey-input { flex: 1; background: var(--bg); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 13px; font-family: monospace; outline: none; transition: border-color .15s; }
+    .apikey-input:focus { border-color: var(--accent); }
+    .apikey-save { padding: 10px 18px; border-radius: 8px; border: none; background: var(--accent); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: opacity .15s; }
+    .apikey-save:hover { opacity: .88; }
+    .apikey-saved { font-size: 12px; color: var(--green); display: none; margin-top: 6px; }
+    .apikey-saved.visible { display: block; }
+    .nav-user { display: flex; align-items: center; gap: 10px; }
+    .nav-user-email { font-size: 12px; color: var(--muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nav-signout { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--muted2); cursor: pointer; font-size: 12px; font-weight: 500; transition: all .15s; }
+    .nav-signout:hover { color: var(--text); border-color: var(--border2); }
+  </style>
+</head>
+<body>
+
+<!-- ══ AUTH SCREEN ═══════════════════════════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-icon">⚡</div>
+      LocalLeads
+    </div>
+
+    <!-- Login / Signup tabs -->
+    <div id="auth-main">
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Sign In</button>
+        <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">Create Account</button>
+      </div>
+
+      <!-- Sign In -->
+      <div class="auth-form visible" id="form-login">
+        <div>
+          <label class="auth-label">Email</label>
+          <input class="auth-input" id="login-email" type="email" placeholder="you@example.com" />
+        </div>
+        <div>
+          <label class="auth-label">Password</label>
+          <input class="auth-input" id="login-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" />
+        </div>
+        <div class="auth-error" id="login-error"></div>
+        <button class="auth-submit" id="login-btn" onclick="doLogin()">Sign In</button>
+        <p class="auth-sub"><a onclick="showForgot()">Forgot password?</a></p>
+      </div>
+
+      <!-- Create Account -->
+      <div class="auth-form" id="form-signup">
+        <div>
+          <label class="auth-label">Email</label>
+          <input class="auth-input" id="signup-email" type="email" placeholder="you@example.com" />
+        </div>
+        <div>
+          <label class="auth-label">Password</label>
+          <input class="auth-input" id="signup-password" type="password" placeholder="At least 8 characters" />
+        </div>
+        <div>
+          <label class="auth-label">Confirm Password</label>
+          <input class="auth-input" id="signup-confirm" type="password" placeholder="Same password again" onkeydown="if(event.key==='Enter')doSignup()" />
+        </div>
+        <div class="auth-error" id="signup-error"></div>
+        <button class="auth-submit" id="signup-btn" onclick="doSignup()">Create Account</button>
+      </div>
+
+      <!-- Forgot password -->
+      <div class="auth-form" id="form-forgot">
+        <p style="font-size:13px;color:var(--muted2);margin-bottom:4px">Enter your email and we'll send a reset link.</p>
+        <div>
+          <label class="auth-label">Email</label>
+          <input class="auth-input" id="forgot-email" type="email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doForgot()" />
+        </div>
+        <div class="auth-error" id="forgot-error"></div>
+        <div class="auth-success" id="forgot-success">Reset link sent — check your inbox.</div>
+        <button class="auth-submit" onclick="doForgot()">Send Reset Link</button>
+        <p class="auth-sub"><a onclick="switchAuthTab('login')">← Back to Sign In</a></p>
+      </div>
+    </div>
+
+    <!-- Verify email (shown after signup) -->
+    <div id="auth-verify" style="display:none">
+      <div class="auth-verify-head">
+        <h2>Check your email</h2>
+        <p>We sent a 6-digit code to <strong id="verify-email-label"></strong>.<br>Enter it below to activate your account.</p>
+      </div>
+      <div class="auth-form visible" style="margin-top:20px">
+        <div class="auth-otp" id="otp-inputs">
+          <input type="text" maxlength="1" inputmode="numeric" oninput="otpMove(this,0)" onkeydown="otpBack(event,0)" />
+          <input type="text" maxlength="1" inputmode="numeric" oninput="otpMove(this,1)" onkeydown="otpBack(event,1)" />
+          <input type="text" maxlength="1" inputmode="numeric" oninput="otpMove(this,2)" onkeydown="otpBack(event,2)" />
+          <input type="text" maxlength="1" inputmode="numeric" oninput="otpMove(this,3)" onkeydown="otpBack(event,3)" />
+          <input type="text" maxlength="1" inputmode="numeric" oninput="otpMove(this,4)" onkeydown="otpBack(event,4)" />
+          <input type="text" maxlength="1" inputmode="numeric" oninput="otpMove(this,5)" onkeydown="otpBack(event,5)" />
+        </div>
+        <div class="auth-error" id="otp-error"></div>
+        <button class="auth-submit" id="otp-btn" onclick="doVerify()">Verify Email</button>
+        <p class="auth-sub"><a onclick="doResend()">Resend code</a> · <a onclick="switchAuthTab('login')">Use a different email</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MAIN APP (shown after login) ══════════════════════════ -->
+<div id="app">
+
+<nav class="nav">
+  <div class="nav-logo" onclick="showView('config')" style="cursor:pointer;">
+    <div class="logo-icon">⚡</div>
+    LocalLeads
+  </div>
+  <div style="display:flex;align-items:center;gap:4px;margin:0 auto;">
+    <button class="nav-link active" id="nav-scraper" onclick="showView('config')">Scraper</button>
+    <button class="nav-link" id="nav-instructions" onclick="showView('instructions')">Instructions</button>
+  </div>
+  <div class="nav-right">
+    <div class="nav-user">
+      <span class="nav-user-email" id="nav-user-email"></span>
+      <button class="nav-btn" onclick="openApiKeyModal()">API Key</button>
+      <button class="nav-signout" onclick="doSignOut()">Sign out</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ══ VIEW: CONFIG ══════════════════════════════════════════ -->
+<div class="view active" id="view-config">
+<div class="page">
+  <div class="left">
+
+    <!-- 1. Service Type (collapsible) -->
+    <div class="col-sec" id="sec-niches">
+      <div class="col-header" onclick="toggleSection('niches')">
+        <span class="col-title">Service Type</span>
+        <span class="col-badge hidden" id="badge-niches"></span>
+        <span class="col-spacer"></span>
+        <button class="sec-micro" onclick="event.stopPropagation();selectAllNiches()">All</button>
+        <button class="sec-micro" onclick="event.stopPropagation();clearNiches()">Clear</button>
+        <svg class="col-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="col-body" id="body-niches" style="max-height:204px">
+        <div class="niche-inner">
+          <div class="niche-scroll" id="niche-scroll"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Location -->
+    <div class="loc-section">
+      <div class="col-header static">
+        <span class="col-title">Location</span>
+        <span class="col-badge hidden" id="badge-location"></span>
+        <span class="col-spacer"></span>
+        <button class="sec-micro" onclick="selectAll()">All</button>
+        <button class="sec-micro" onclick="clearRegions()">Clear</button>
+      </div>
+      <div class="country-toggle">
+        <button class="country-btn active" id="btn-us" onclick="setCountry('us')">🇺🇸 United States</button>
+        <button class="country-btn" id="btn-ca" onclick="setCountry('ca')">🇨🇦 Canada</button>
+        <button class="country-btn" id="btn-au" onclick="setCountry('au')">🇦🇺 Australia</button>
+        <button class="country-btn" id="btn-eu" onclick="setCountry('eu')">🇪🇺 Europe</button>
+      </div>
+      <div class="filter-row">
+        <input class="filter-input" id="filter" type="text" placeholder="Filter states / provinces…" oninput="renderGrid()" />
+      </div>
+      <div class="state-grid">
+        <div class="region-grid" id="region-grid"></div>
+      </div>
+    </div>
+
+    <!-- 3. Specific Location (collapsible) -->
+    <div class="col-sec" id="sec-specific">
+      <div class="col-header" onclick="toggleSection('specific')">
+        <span class="col-title">Specific Location</span>
+        <span class="opt-badge">optional</span>
+        <span class="col-badge hidden" id="badge-specific"></span>
+        <span class="col-spacer"></span>
+        <svg class="col-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="col-body" id="body-specific" style="max-height:200px">
+        <div class="specific-inner">
+          <input class="location-input" id="location-input" type="text"
+            placeholder="e.g. Richmond, BC or Austin, TX…"
+            oninput="onLocationInput()" onkeydown="onLocationKey(event)"
+            onfocus="repositionDropdown()" autocomplete="off" />
+          <div class="chips" id="chips"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /left -->
+
+  <div class="right">
+    <div class="right-section" style="padding-top:20px;">
+      <div class="section-title">Summary</div>
+      <div class="summary-box">
+        <div class="summary-row"><span class="summary-label">Niches selected</span><span class="summary-val accent" id="s-niches">0</span></div>
+        <div class="summary-row"><span class="summary-label">Regions selected</span><span class="summary-val accent" id="s-regions">0</span></div>
+        <div class="summary-row"><span class="summary-label">Est. cities to scrape</span><span class="summary-val" id="s-cities">—</span></div>
+        <div class="summary-row"><span class="summary-label">Specific locations</span><span class="summary-val" id="s-specific">—</span></div>
+        <div class="summary-row"><span class="summary-label">Total scrape runs</span><span class="summary-val" id="s-runs">—</span></div>
+        <div class="summary-row"><span class="summary-label">Est. leads</span><span class="summary-val" id="s-leads">—</span></div>
+      </div>
+    </div>
+
+    <div class="divider" style="margin:0 20px;"></div>
+
+    <div class="right-section" style="padding-top:18px;">
+      <div class="section-title">Configuration</div>
+      <div class="config-group">
+        <label class="config-label">Max results per city / niche</label>
+        <input class="config-input" id="max-results" type="number" min="1" max="60" value="60" oninput="updateCost()" />
+        <div class="config-hint">Google returns up to 60 per search (3 pages × 20)</div>
+      </div>
+      <div class="config-group">
+        <label class="config-label">Min rating</label>
+        <input class="config-input" id="min-rating" type="number" min="1" max="5" step="0.1" value="3.5" />
+        <div class="config-hint">Skip businesses rated below this</div>
+      </div>
+      <div class="config-group">
+        <label class="config-label">Min review count</label>
+        <input class="config-input" id="min-reviews" type="number" min="0" value="5" />
+        <div class="config-hint">Skip businesses with fewer reviews</div>
+      </div>
+    </div>
+
+    <div class="divider" style="margin:0 20px;"></div>
+
+    <div class="right-section" style="padding-top:18px;">
+      <div class="section-title">Cost Estimate <span class="badge badge-green">Your API key</span></div>
+      <div class="cost-card">
+        <div class="cost-row"><span class="cost-label">Niches × cities</span><span class="cost-val" id="c-runs">0 × 0</span></div>
+        <div class="cost-row"><span class="cost-label">Pages per run</span><span class="cost-val" id="c-pages">3</span></div>
+        <div class="cost-row"><span class="cost-label">Total API calls</span><span class="cost-val" id="c-calls">0</span></div>
+        <div class="cost-row"><span class="cost-label">Rate</span><span class="cost-val">$0.032 / call</span></div>
+        <div class="cost-total-row">
+          <span class="cost-total-label">Estimated cost</span>
+          <span class="cost-total-val" id="c-total">$0.00</span>
+        </div>
+        <p class="cost-note">Charges go to <strong>your</strong> Google Places API key — not ours. You control your own spending limits inside Google Cloud.</p>
+      </div>
+    </div>
+
+    <div class="run-section">
+      <button class="run-btn" id="run-btn" disabled onclick="runScrape()">Run Scrape</button>
+      <div class="run-sub" id="run-sub">Select at least one niche and one region</div>
+      <button onclick="loadDemoResults()" style="margin-top:10px;background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px;">Preview demo results</button>
+    </div>
+  </div>
+</div>
+</div><!-- /view-config -->
+
+<!-- ══ VIEW: PROGRESS ════════════════════════════════════════ -->
+<div class="view" id="view-progress">
+  <div class="prog-card">
+    <div class="prog-top">
+      <div class="prog-title">
+        <div class="prog-spinner" id="prog-spinner"></div>
+        <span id="prog-title-text">Scraping in progress…</span>
+      </div>
+      <button class="prog-cancel" id="prog-cancel-btn" onclick="cancelScrape()">Cancel</button>
+    </div>
+
+    <div style="display:flex;align-items:flex-end;gap:16px;margin-bottom:8px;">
+      <div class="prog-pct" id="prog-pct">0%</div>
+      <div style="flex:1;padding-bottom:6px;">
+        <div class="prog-bar-wrap">
+          <div class="prog-bar-track"><div class="prog-bar-fill" id="prog-bar"></div></div>
+          <div class="prog-bar-meta">
+            <span id="prog-step">Starting…</span>
+            <span id="prog-eta">Calculating…</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prog-current">
+      <div class="prog-current-label">Currently scraping</div>
+      <div class="prog-current-val" id="prog-current">Initializing…</div>
+    </div>
+
+    <div class="prog-stats">
+      <div class="prog-stat">
+        <div class="prog-stat-val green" id="prog-leads">0</div>
+        <div class="prog-stat-label">Leads found</div>
+      </div>
+      <div class="prog-stat">
+        <div class="prog-stat-val accent" id="prog-cost">$0.00</div>
+        <div class="prog-stat-label">API cost so far</div>
+      </div>
+      <div class="prog-stat">
+        <div class="prog-stat-val" id="prog-cities-done">0 / 0</div>
+        <div class="prog-stat-label">Cities done</div>
+      </div>
+    </div>
+
+    <div class="prog-feed-label">Live feed</div>
+    <div class="prog-feed" id="prog-feed"></div>
+
+    <button class="prog-done-btn" id="prog-done-btn" onclick="showResults()">
+      View Results →
+    </button>
+  </div>
+</div>
+
+<!-- ══ VIEW: RESULTS ═════════════════════════════════════════ -->
+<div class="view" id="view-results">
+  <div class="results-header">
+    <button class="results-back" onclick="showView('config')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      New Scrape
+    </button>
+    <div class="results-stats">
+      <div class="results-stat"><strong id="res-total">0</strong> <span>leads</span></div>
+      <div class="results-stat" style="color:var(--border2)">|</div>
+      <div class="results-stat"><strong id="res-niches-count">—</strong> <span>niches</span></div>
+      <div class="results-stat" style="color:var(--border2)">|</div>
+      <div class="results-stat"><strong id="res-cost-final">$0.00</strong> <span>spent</span></div>
+    </div>
+    <div class="results-actions">
+      <div class="enrich-wrap">
+        <button class="enrich-btn" id="enrich-btn" onclick="runEnrichment()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Find Owner Names
+        </button>
+        <button class="enrich-learn" onclick="openEnrichModal()">What does this do?</button>
+      </div>
+      <button class="dl-btn" onclick="downloadCSV()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download CSV
+      </button>
+    </div>
+  </div>
+  <div class="results-filters">
+    <input class="res-search" type="text" placeholder="Search businesses…" oninput="filterResults()" id="res-search" />
+    <select class="res-select" id="res-niche-filter" onchange="filterResults()">
+      <option value="">All niches</option>
+    </select>
+    <select class="res-select" id="res-rating-filter" onchange="filterResults()">
+      <option value="">Any rating</option>
+      <option value="4.5">4.5+</option>
+      <option value="4.0">4.0+</option>
+      <option value="3.5">3.5+</option>
+    </select>
+  </div>
+  <div class="results-count" id="res-count"></div>
+  <div class="results-body">
+    <table class="res-table">
+      <thead>
+        <tr>
+          <th onclick="sortResults('name')">Business Name</th>
+          <th onclick="sortResults('niche')">Niche</th>
+          <th>Location</th>
+          <th>Phone</th>
+          <th>Email</th>
+          <th>Website</th>
+          <th onclick="sortResults('rating')" class="sorted">Rating ↓</th>
+          <th onclick="sortResults('reviews')">Reviews</th>
+        </tr>
+      </thead>
+      <tbody id="res-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ VIEW: INSTRUCTIONS ═════════════════════════════════════ -->
+<div class="view" id="view-instructions">
+  <div class="instr-wrap">
+    <div class="instr-hero">
+      <div class="instr-hero-badge">Getting Started Guide</div>
+      <h1>How to Get Your First Leads<br>in 6 Simple Steps</h1>
+      <p>No experience needed. Follow this guide once and you'll have a list of local business leads downloaded to your computer in under 10 minutes.</p>
+    </div>
+
+    <!-- Step 1 -->
+    <div class="instr-section open" id="instr-1">
+      <div class="instr-sec-header" onclick="toggleInstr('instr-1')">
+        <div class="instr-step-num">1</div>
+        <div style="flex:1">
+          <div class="instr-sec-title">Get your free Google API Key</div>
+          <div class="instr-sec-subtitle">One-time setup · Takes about 5 minutes</div>
+        </div>
+        <svg class="instr-sec-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="instr-sec-body">
+        <p class="instr-text">This app searches Google Maps to find businesses for you. To do that, it needs a <strong>"Google API Key"</strong> — think of it like a special password that lets this app talk to Google on your behalf. You only need to set this up once, ever.</p>
+        <p class="instr-text">Here's exactly how to get your key:</p>
+        <ul class="instr-steps">
+          <li><div class="instr-step-dot">1</div><span>Go to <a class="instr-link" href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> and sign in with any Google account (Gmail works fine)</span></li>
+          <li><div class="instr-step-dot">2</div><span>Click <strong>"Create Project"</strong> — name it anything you want, like "Lead Machine"</span></li>
+          <li><div class="instr-step-dot">3</div><span>In the search bar at the top, type <strong>"Places API (New)"</strong> and click on it in the results</span></li>
+          <li><div class="instr-step-dot">4</div><span>Click the blue <strong>"Enable"</strong> button</span></li>
+          <li><div class="instr-step-dot">5</div><span>On the left menu, click <strong>"Credentials"</strong>, then click <strong>"+ Create Credentials"</strong>, then <strong>"API Key"</strong></span></li>
+          <li><div class="instr-step-dot">6</div><span>A box will appear with your key (it looks like a long string of random letters). <strong>Copy it and save it somewhere safe</strong> — like a notes app.</span></li>
+        </ul>
+
+        <div class="instr-visual-guide">
+          <div class="instr-visual-title">📸 Visual walkthrough</div>
+
+          <!-- Screen 1: Click project selector -->
+          <div class="instr-mockup-wrap">
+            <svg viewBox="0 0 540 130" xmlns="http://www.w3.org/2000/svg">
+              <rect width="540" height="130" rx="8" fill="#e2e4e8"/>
+              <rect width="540" height="26" rx="8" fill="#cbcdd2"/>
+              <rect y="16" width="540" height="10" fill="#cbcdd2"/>
+              <circle cx="15" cy="13" r="5" fill="#ff5f57"/><circle cx="30" cy="13" r="5" fill="#febc2e"/><circle cx="45" cy="13" r="5" fill="#28c840"/>
+              <rect x="62" y="6" width="320" height="14" rx="7" fill="#f9fafb"/>
+              <text x="222" y="17" text-anchor="middle" font-size="9" fill="#9ca3af" font-family="Arial,sans-serif">console.cloud.google.com</text>
+              <rect y="26" width="540" height="42" fill="white"/>
+              <rect y="68" width="540" height="1" fill="#e8eaed"/>
+              <line x1="10" y1="39" x2="22" y2="39" stroke="#5f6368" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="10" y1="47" x2="22" y2="47" stroke="#5f6368" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="10" y1="55" x2="22" y2="55" stroke="#5f6368" stroke-width="1.5" stroke-linecap="round"/>
+              <rect x="30" y="36" width="7" height="7" rx="1" fill="#4285f4"/><rect x="39" y="36" width="7" height="7" rx="1" fill="#ea4335"/>
+              <rect x="30" y="45" width="7" height="7" rx="1" fill="#34a853"/><rect x="39" y="45" width="7" height="7" rx="1" fill="#fbbc04"/>
+              <text x="52" y="50" fill="#3c4043" font-size="11" font-family="Arial,sans-serif" font-weight="bold">Google Cloud</text>
+              <rect x="148" y="38" width="124" height="22" rx="4" fill="#e8f0fe" stroke="#1a73e8" stroke-width="2"/>
+              <text x="157" y="53" fill="#1a73e8" font-size="10" font-family="Arial,sans-serif" font-weight="500">Select a project  ▾</text>
+              <rect x="144" y="34" width="132" height="30" rx="6" fill="none" stroke="#ea4335" stroke-width="2.5"/>
+              <rect x="284" y="38" width="155" height="22" rx="11" fill="#f1f3f4"/>
+              <text x="298" y="53" fill="#9aa0a6" font-size="10" font-family="Arial,sans-serif">Search</text>
+              <circle cx="516" cy="47" r="11" fill="#4285f4"/>
+              <text x="516" y="51" text-anchor="middle" fill="white" font-size="10" font-family="Arial,sans-serif" font-weight="bold">N</text>
+              <rect y="69" width="540" height="61" fill="#f8f9fa"/>
+              <rect x="20" y="80" width="160" height="10" rx="3" fill="#e2e4e8"/>
+              <rect x="20" y="96" width="240" height="8" rx="3" fill="#eaecee"/>
+              <line x1="210" y1="120" x2="210" y2="73" stroke="#ea4335" stroke-width="2.5"/>
+              <polygon points="210,67 204,79 216,79" fill="#ea4335"/>
+              <rect x="148" y="108" width="124" height="19" rx="4" fill="#ea4335"/>
+              <text x="210" y="121" text-anchor="middle" fill="white" font-size="10" font-family="Arial,sans-serif" font-weight="bold">① Click this dropdown</text>
+            </svg>
+            <div class="instr-mockup-cap"><strong>Step 2 —</strong> Click the project dropdown in the top nav bar</div>
+          </div>
+
+          <!-- Screen 2: Project picker → NEW PROJECT -->
+          <div class="instr-mockup-wrap">
+            <svg viewBox="0 0 540 148" xmlns="http://www.w3.org/2000/svg">
+              <rect width="540" height="148" rx="8" fill="#e2e4e8"/>
+              <rect width="540" height="26" rx="8" fill="#cbcdd2"/>
+              <rect y="16" width="540" height="10" fill="#cbcdd2"/>
+              <circle cx="15" cy="13" r="5" fill="#ff5f57"/><circle cx="30" cy="13" r="5" fill="#febc2e"/><circle cx="45" cy="13" r="5" fill="#28c840"/>
+              <rect x="62" y="6" width="320" height="14" rx="7" fill="#f9fafb"/>
+              <text x="222" y="17" text-anchor="middle" font-size="9" fill="#9ca3af" font-family="Arial,sans-serif">console.cloud.google.com</text>
+              <rect y="26" width="540" height="122" fill="rgba(0,0,0,0.35)"/>
+              <rect x="70" y="32" width="400" height="110" rx="4" fill="white"/>
+              <text x="86" y="53" fill="#202124" font-size="12" font-family="Arial,sans-serif" font-weight="bold">Select a project</text>
+              <line x1="70" y1="61" x2="470" y2="61" stroke="#e8eaed" stroke-width="1"/>
+              <rect x="338" y="36" width="116" height="26" rx="4" fill="#1a73e8"/>
+              <text x="396" y="53" text-anchor="middle" fill="white" font-size="10" font-family="Arial,sans-serif" font-weight="bold">+ NEW PROJECT</text>
+              <rect x="334" y="32" width="124" height="34" rx="6" fill="none" stroke="#ea4335" stroke-width="2.5"/>
+              <rect x="82" y="68" width="200" height="22" rx="4" fill="#f1f3f4"/>
+              <text x="96" y="83" fill="#9aa0a6" font-size="10" font-family="Arial,sans-serif">Search projects...</text>
+              <text x="86" y="106" fill="#bdc1c6" font-size="10.5" font-family="Arial,sans-serif">No projects yet</text>
+              <line x1="396" y1="115" x2="396" y2="70" stroke="#ea4335" stroke-width="2.5"/>
+              <polygon points="396,66 390,76 402,76" fill="#ea4335"/>
+              <rect x="328" y="116" width="136" height="19" rx="4" fill="#ea4335"/>
+              <text x="396" y="129" text-anchor="middle" fill="white" font-size="10" font-family="Arial,sans-serif" font-weight="bold">② Click NEW PROJECT</text>
+            </svg>
+            <div class="instr-mockup-cap"><strong>Step 2 (cont.) —</strong> A popup appears. Click "NEW PROJECT" in the top right corner</div>
+          </div>
+
+          <!-- Screen 3: Search bar → Places API (New) -->
+          <div class="instr-mockup-wrap">
+            <svg viewBox="0 0 540 148" xmlns="http://www.w3.org/2000/svg">
+              <rect width="540" height="148" rx="8" fill="#e2e4e8"/>
+              <rect width="540" height="26" rx="8" fill="#cbcdd2"/>
+              <rect y="16" width="540" height="10" fill="#cbcdd2"/>
+              <circle cx="15" cy="13" r="5" fill="#ff5f57"/><circle cx="30" cy="13" r="5" fill="#febc2e"/><circle cx="45" cy="13" r="5" fill="#28c840"/>
+              <rect x="62" y="6" width="320" height="14" rx="7" fill="#f9fafb"/>
+              <text x="222" y="17" text-anchor="middle" font-size="9" fill="#9ca3af" font-family="Arial,sans-serif">console.cloud.google.com</text>
+              <rect y="26" width="540" height="42" fill="white"/>
+              <rect y="68" width="540" height="1" fill="#e8eaed"/>
+              <line x1="10" y1="39" x2="22" y2="39" stroke="#5f6368" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="10" y1="47" x2="22" y2="47" stroke="#5f6368" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="10" y1="55" x2="22" y2="55" stroke="#5f6368" stroke-width="1.5" stroke-linecap="round"/>
+              <rect x="30" y="36" width="7" height="7" rx="1" fill="#4285f4"/><rect x="39" y="36" width="7" height="7" rx="1" fill="#ea4335"/>
+              <rect x="30" y="45" width="7" height="7" rx="1" fill="#34a853"/><rect x="39" y="45" width="7" height="7" rx="1" fill="#fbbc04"/>
+              <text x="52" y="50" fill="#3c4043" font-size="11" font-family="Arial,sans-serif" font-weight="bold">Google Cloud</text>
+              <rect x="148" y="38" width="110" height="22" rx="4" fill="#f1f3f4"/>
+              <text x="157" y="53" fill="#5f6368" font-size="10" font-family="Arial,sans-serif">Lead Machine  ▾</text>
+              <rect x="196" y="30" width="308" height="37" rx="4" fill="white" stroke="#4285f4" stroke-width="2"/>
+              <text x="212" y="53" fill="#3c4043" font-size="11" font-family="Arial,sans-serif">Places API (New)</text>
+              <rect x="192" y="26" width="316" height="45" rx="6" fill="none" stroke="#ea4335" stroke-width="2"/>
+              <rect x="196" y="69" width="308" height="75" rx="4" fill="white"/>
+              <rect x="196" y="69" width="308" height="28" fill="#e8f0fe"/>
+              <text x="212" y="87" fill="#1a73e8" font-size="11" font-family="Arial,sans-serif" font-weight="500">Places API (New)</text>
+              <rect x="192" y="65" width="316" height="36" rx="5" fill="none" stroke="#ea4335" stroke-width="2"/>
+              <line x1="196" y1="97" x2="504" y2="97" stroke="#f1f3f4" stroke-width="1"/>
+              <text x="212" y="113" fill="#5f6368" font-size="10.5" font-family="Arial,sans-serif">Places API</text>
+              <text x="212" y="128" fill="#5f6368" font-size="10.5" font-family="Arial,sans-serif">Maps JavaScript API</text>
+              <line x1="350" y1="142" x2="350" y2="105" stroke="#ea4335" stroke-width="2.5"/>
+              <polygon points="350,101 344,111 356,111" fill="#ea4335"/>
+            </svg>
+            <div class="instr-mockup-cap"><strong>Step 3 —</strong> Click the search bar, type "Places API (New)", then click the first result that appears</div>
+          </div>
+
+          <!-- Screen 4: ENABLE button -->
+          <div class="instr-mockup-wrap">
+            <svg viewBox="0 0 540 148" xmlns="http://www.w3.org/2000/svg">
+              <rect width="540" height="148" rx="8" fill="#e2e4e8"/>
+              <rect width="540" height="26" rx="8" fill="#cbcdd2"/>
+              <rect y="16" width="540" height="10" fill="#cbcdd2"/>
+              <circle cx="15" cy="13" r="5" fill="#ff5f57"/><circle cx="30" cy="13" r="5" fill="#febc2e"/><circle cx="45" cy="13" r="5" fill="#28c840"/>
+              <rect x="62" y="6" width="420" height="14" rx="7" fill="#f9fafb"/>
+              <text x="272" y="17" text-anchor="middle" font-size="9" fill="#9ca3af" font-family="Arial,sans-serif">console.cloud.google.com/apis/library/places-backend.googleapis.com</text>
+              <rect y="26" width="540" height="42" fill="white"/>
+              <rect y="68" width="540" height="1" fill="#e8eaed"/>
+              <rect x="30" y="36" width="7" height="7" rx="1" fill="#4285f4"/><rect x="39" y="36" width="7" height="7" rx="1" fill="#ea4335"/>
+              <rect x="30" y="45" width="7" height="7" rx="1" fill="#34a853"/><rect x="39" y="45" width="7" height="7" rx="1" fill="#fbbc04"/>
+              <text x="52" y="50" fill="#3c4043" font-size="11" font-family="Arial,sans-serif" font-weight="bold">Google Cloud</text>
+              <rect x="148" y="38" width="110" height="22" rx="4" fill="#f1f3f4"/>
+              <text x="157" y="53" fill="#5f6368" font-size="10" font-family="Arial,sans-serif">Lead Machine  ▾</text>
+              <rect x="274" y="38" width="155" height="22" rx="11" fill="#f1f3f4"/>
+              <text x="288" y="53" fill="#9aa0a6" font-size="10" font-family="Arial,sans-serif">Search</text>
+              <circle cx="516" cy="47" r="11" fill="#4285f4"/>
+              <text x="516" y="51" text-anchor="middle" fill="white" font-size="10" font-family="Arial,sans-serif" font-weight="bold">N</text>
+              <rect y="69" width="540" height="79" fill="#f8f9fa"/>
+              <rect x="22" y="78" width="34" height="34" rx="4" fill="#4285f4"/>
+              <text x="39" y="100" text-anchor="middle" fill="white" font-size="18" font-family="Arial,sans-serif">📍</text>
+              <text x="64" y="90" fill="#202124" font-size="13" font-family="Arial,sans-serif" font-weight="bold">Places API (New)</text>
+              <text x="64" y="104" fill="#5f6368" font-size="10" font-family="Arial,sans-serif">Google Maps Platform</text>
+              <rect x="64" y="112" width="80" height="28" rx="4" fill="#1a73e8"/>
+              <text x="104" y="130" text-anchor="middle" fill="white" font-size="12" font-family="Arial,sans-serif" font-weight="bold">ENABLE</text>
+              <rect x="60" y="108" width="88" height="36" rx="6" fill="none" stroke="#ea4335" stroke-width="2.5"/>
+              <line x1="240" y1="126" x2="152" y2="126" stroke="#ea4335" stroke-width="2.5"/>
+              <polygon points="148,126 158,120 158,132" fill="#ea4335"/>
+              <rect x="238" y="116" width="106" height="19" rx="5" fill="#ea4335"/>
+              <text x="291" y="129" text-anchor="middle" fill="white" font-size="10" font-family="Arial,sans-serif" font-weight="bold">Click ENABLE</text>
+            </svg>
+            <div class="instr-mockup-cap"><strong>Step 4 —</strong> Click the blue "ENABLE" button on the Places API page</div>
+          </div>
+
+          <!-- Screen 5: Credentials page → Create Credentials → API key -->
+          <div class="instr-mockup-wrap">
+            <svg viewBox="0 0 540 152" xmlns="http://www.w3.org/2000/svg">
+              <rect width="540" height="152" rx="8" fill="#e2e4e8"/>
+              <rect width="540" height="26" rx="8" fill="#cbcdd2"/>
+              <rect y="16" width="540" height="10" fill="#cbcdd2"/>
+              <circle cx="15" cy="13" r="5" fill="#ff5f57"/><circle cx="30" cy="13" r="5" fill="#febc2e"/><circle cx="45" cy="13" r="5" fill="#28c840"/>
+              <rect x="62" y="6" width="320" height="14" rx="7" fill="#f9fafb"/>
+              <text x="222" y="17" text-anchor="middle" font-size="9" fill="#9ca3af" font-family="Arial,sans-serif">console.cloud.google.com/apis/credentials</text>
+              <rect y="26" width="540" height="42" fill="white"/>
+              <rect y="68" width="540" height="1" fill="#e8eaed"/>
+              <rect x="30" y="36" width="7" height="7" rx="1" fill="#4285f4"/><rect x="39" y="36" width="7" height="7" rx="1" fill="#ea4335"/>
+              <rect x="30" y="45" width="7" height="7" rx="1" fill="#34a853"/><rect x="39" y="45" width="7" height="7" rx="1" fill="#fbbc04"/>
+              <text x="52" y="50" fill="#3c4043" font-size="11" font-family="Arial,sans-serif" font-weight="bold">Google Cloud</text>
+              <rect x="148" y="38" width="110" height="22" rx="4" fill="#f1f3f4"/>
+              <text x="157" y="53" fill="#5f6368" font-size="10" font-family="Arial,sans-serif">Lead Machine  ▾</text>
+              <rect y="69" width="156" height="83" fill="white"/>
+              <rect x="156" y="69" width="1" height="83" fill="#e8eaed"/>
+              <text x="14" y="87" fill="#5f6368" font-size="10" font-family="Arial,sans-serif">APIs &amp; Services</text>
+              <text x="14" y="103" fill="#5f6368" font-size="9.5" font-family="Arial,sans-serif">  Enabled APIs</text>
+              <text x="14" y="117" fill="#5f6368" font-size="9.5" font-family="Arial,sans-serif">  Library</text>
+              <rect x="8" y="122" width="146" height="22" rx="4" fill="#e8f0fe"/>
+              <text x="14" y="137" fill="#1a73e8" font-size="9.5" font-family="Arial,sans-serif" font-weight="bold">  Credentials</text>
+              <rect x="4" y="118" width="154" height="30" rx="4" fill="none" stroke="#ea4335" stroke-width="2"/>
+              <rect x="157" y="69" width="383" height="83" fill="#f8f9fa"/>
+              <text x="174" y="88" fill="#202124" font-size="13" font-family="Arial,sans-serif" font-weight="bold">Credentials</text>
+              <rect x="174" y="95" width="162" height="26" rx="4" fill="#1a73e8"/>
+              <text x="255" y="112" text-anchor="middle" fill="white" font-size="10" font-family="Arial,sans-serif" font-weight="bold">+ CREATE CREDENTIALS</text>
+              <rect x="174" y="123" width="162" height="26" rx="4" fill="white"/>
+              <rect x="174" y="123" width="162" height="26" fill="#e8f0fe" rx="4"/>
+              <text x="190" y="140" fill="#1a73e8" font-size="11" font-family="Arial,sans-serif" font-weight="500">API key</text>
+              <rect x="170" y="119" width="170" height="34" rx="5" fill="none" stroke="#ea4335" stroke-width="2.5"/>
+              <line x1="380" y1="108" x2="340" y2="108" stroke="#ea4335" stroke-width="2.5"/>
+              <polygon points="336,108 346,102 346,114" fill="#ea4335"/>
+              <rect x="376" y="98" width="130" height="19" rx="5" fill="#ea4335"/>
+              <text x="441" y="111" text-anchor="middle" fill="white" font-size="10" font-family="Arial,sans-serif" font-weight="bold">Click → then API key</text>
+            </svg>
+            <div class="instr-mockup-cap"><strong>Step 5 —</strong> Click "Credentials" in the left menu → "CREATE CREDENTIALS" → select "API key"</div>
+          </div>
+
+          <!-- Screen 6: Copy the API key -->
+          <div class="instr-mockup-wrap">
+            <svg viewBox="0 0 540 148" xmlns="http://www.w3.org/2000/svg">
+              <rect width="540" height="148" rx="8" fill="#e2e4e8"/>
+              <rect width="540" height="26" rx="8" fill="#cbcdd2"/>
+              <rect y="16" width="540" height="10" fill="#cbcdd2"/>
+              <circle cx="15" cy="13" r="5" fill="#ff5f57"/><circle cx="30" cy="13" r="5" fill="#febc2e"/><circle cx="45" cy="13" r="5" fill="#28c840"/>
+              <rect x="62" y="6" width="320" height="14" rx="7" fill="#f9fafb"/>
+              <text x="222" y="17" text-anchor="middle" font-size="9" fill="#9ca3af" font-family="Arial,sans-serif">console.cloud.google.com/apis/credentials</text>
+              <rect y="26" width="540" height="122" fill="rgba(0,0,0,0.38)"/>
+              <rect x="90" y="34" width="360" height="106" rx="4" fill="white"/>
+              <text x="108" y="56" fill="#202124" font-size="13" font-family="Arial,sans-serif" font-weight="bold">API key created</text>
+              <text x="108" y="73" fill="#5f6368" font-size="10.5" font-family="Arial,sans-serif">Your API key:</text>
+              <rect x="108" y="79" width="236" height="24" rx="4" fill="#f1f3f4" stroke="#e8eaed" stroke-width="1"/>
+              <text x="116" y="95" fill="#3c4043" font-size="9" font-family="'Courier New',monospace,Arial,sans-serif">AIzaSyBx9pL2kQmN7vW4rT6y...</text>
+              <rect x="348" y="79" width="72" height="24" rx="4" fill="#1a73e8"/>
+              <text x="384" y="95" text-anchor="middle" fill="white" font-size="10.5" font-family="Arial,sans-serif" font-weight="bold">COPY</text>
+              <rect x="104" y="75" width="320" height="32" rx="5" fill="none" stroke="#ea4335" stroke-width="2.5"/>
+              <line x1="384" y1="120" x2="384" y2="111" stroke="#ea4335" stroke-width="2.5"/>
+              <polygon points="384,107 378,117 390,117" fill="#ea4335"/>
+              <rect x="326" y="120" width="116" height="19" rx="4" fill="#ea4335"/>
+              <text x="384" y="133" text-anchor="middle" fill="white" font-size="10" font-family="Arial,sans-serif" font-weight="bold">Copy &amp; save this key!</text>
+              <rect x="380" y="117" width="58" height="18" rx="4" fill="#f1f3f4" opacity="0.5"/>
+              <text x="409" y="130" text-anchor="middle" fill="#5f6368" font-size="10" font-family="Arial,sans-serif">CLOSE</text>
+            </svg>
+            <div class="instr-mockup-cap"><strong>Step 6 —</strong> A box pops up with your key. Click "COPY" then paste it somewhere safe (Notes app, etc.)</div>
+          </div>
+
+        </div>
+
+        <div class="instr-callout"><strong>Note:</strong> Google may ask you to set up billing during this process. Go ahead and add a card — you control your own spending limits inside Google Cloud.</div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="instr-section" id="instr-2">
+      <div class="instr-sec-header" onclick="toggleInstr('instr-2')">
+        <div class="instr-step-num">2</div>
+        <div style="flex:1">
+          <div class="instr-sec-title">Add your key to this app</div>
+          <div class="instr-sec-subtitle">30 seconds · Only needs to be done once</div>
+        </div>
+        <svg class="instr-sec-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="instr-sec-body">
+        <p class="instr-text">Once you have your Google API Key, you need to tell this app what it is so it can use it to search for you.</p>
+        <ul class="instr-steps">
+          <li><div class="instr-step-dot">1</div><span>Click the <strong>"API Key"</strong> button in the top right corner of this page</span></li>
+          <li><div class="instr-step-dot">2</div><span>Paste your key into the box that appears</span></li>
+          <li><div class="instr-step-dot">3</div><span>Click Save — you're done! You won't need to do this again.</span></li>
+        </ul>
+        <div class="instr-callout"><strong>Your key stays private.</strong> It's only saved on your device. We never see it or store it on our servers.</div>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="instr-section" id="instr-3">
+      <div class="instr-sec-header" onclick="toggleInstr('instr-3')">
+        <div class="instr-step-num">3</div>
+        <div style="flex:1">
+          <div class="instr-sec-title">Choose what types of businesses to find</div>
+          <div class="instr-sec-subtitle">Pick one or many service types</div>
+        </div>
+        <svg class="instr-sec-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="instr-sec-body">
+        <p class="instr-text">On the left side of the Scraper, you'll see a list of service types — things like Roofing, Plumbing, HVAC, Landscaping, and more. These are the kinds of businesses you want to find.</p>
+        <p class="instr-text"><strong>Just click on the ones you want.</strong> They'll highlight in purple when selected. Click again to remove them.</p>
+        <div class="instr-callout green"><strong>The more types you pick, the more leads you'll get</strong> — but it also costs a little more. The cost estimate on the right side of the Scraper updates automatically as you pick.</div>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="instr-section" id="instr-4">
+      <div class="instr-sec-header" onclick="toggleInstr('instr-4')">
+        <div class="instr-step-num">4</div>
+        <div style="flex:1">
+          <div class="instr-sec-title">Choose where to search</div>
+          <div class="instr-sec-subtitle">Pick states, provinces, or a specific city</div>
+        </div>
+        <svg class="instr-sec-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="instr-sec-body">
+        <p class="instr-text">Under the service types, you'll see a map of states and provinces. <strong>Check the boxes</strong> next to the areas you want to search. Each state or province is broken down into its major cities automatically — you don't need to list them yourself.</p>
+        <p class="instr-text">You can also switch between countries (US, Canada, Australia, Europe) using the buttons at the top of the location section.</p>
+        <div class="instr-callout"><strong>Want just one specific city?</strong> Scroll to the "Specific Location" section at the bottom left and type your city in. For example: "Austin, TX" or "Richmond, BC". Add as many specific cities as you want.</div>
+        <div class="instr-callout green"><strong>First time tip:</strong> Start with just 1–2 states. You can always run a bigger search later. This lets you test the results before spending more credits.</div>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="instr-section" id="instr-5">
+      <div class="instr-sec-header" onclick="toggleInstr('instr-5')">
+        <div class="instr-step-num">5</div>
+        <div style="flex:1">
+          <div class="instr-sec-title">Check the cost estimate, then launch</div>
+          <div class="instr-sec-subtitle">Always free to estimate · Only costs when you run</div>
+        </div>
+        <svg class="instr-sec-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="instr-sec-body">
+        <p class="instr-text">Before you hit Launch, look at the <strong>"Cost Estimate"</strong> box on the right side. It tells you exactly how much this search will cost using your Google API key — before you run anything.</p>
+        <p class="instr-text">Most small searches cost less than a dollar. You can set spending limits inside your Google Cloud account to stay in full control of your costs.</p>
+        <p class="instr-text">When you're happy with your selection, hit the big purple <strong>"Run Scrape"</strong> button. That's it — the search starts automatically.</p>
+        <div class="instr-callout"><strong>Nothing runs until you click that button.</strong> You can adjust your selections and watch the estimate update as many times as you want. You're never charged just for looking.</div>
+      </div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="instr-section" id="instr-6">
+      <div class="instr-sec-header" onclick="toggleInstr('instr-6')">
+        <div class="instr-step-num done">✓</div>
+        <div style="flex:1">
+          <div class="instr-sec-title">Watch it work, then download your leads</div>
+          <div class="instr-sec-subtitle">Sit back and let the app do the work</div>
+        </div>
+        <svg class="instr-sec-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="instr-sec-body">
+        <p class="instr-text">After you hit Launch, you'll see a live progress screen. It shows you:</p>
+        <ul class="instr-steps">
+          <li><div class="instr-step-dot">📊</div><span><strong>How many leads have been found so far</strong> — this number goes up as the search runs</span></li>
+          <li><div class="instr-step-dot">⏱️</div><span><strong>How much time is left</strong> — so you know when to come back</span></li>
+          <li><div class="instr-step-dot">💰</div><span><strong>How much it's cost so far</strong> — live tracking against your Google credit</span></li>
+          <li><div class="instr-step-dot">📍</div><span><strong>Which city it's currently searching</strong> — a live feed of businesses being found</span></li>
+        </ul>
+        <p class="instr-text">When it's done, click <strong>"View Results →"</strong>. You'll see a table with every business found — their name, phone number, website, star rating, and number of Google reviews.</p>
+        <p class="instr-text">You can filter the list by name, city, niche, or star rating to focus on the best leads. When you're ready, hit <strong>"Download CSV"</strong> and the list saves to your computer as a spreadsheet you can open in Excel or Google Sheets.</p>
+        <div class="instr-callout green"><strong>That's it.</strong> You now have a list of real local businesses with contact info, ready to call, email, or hand off to a salesperson.</div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="instr-cta">
+      <h3>Ready to find your first leads?</h3>
+      <p>Go to the Scraper, pick your services and location, and hit Launch.</p>
+      <button class="instr-cta-btn" onclick="showView('config')">Go to the Scraper →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dropdown lives at body level -->
+<div class="ac-dropdown" id="ac-dropdown"></div>
+
+<script>
+// ── Niches ────────────────────────────────────────────────────────────────────
+const NICHE_GROUPS = [
+  { label: 'Home Exterior', niches: [
+    { id: 'roofing',    icon: '🏠', label: 'Roofing',             query: 'roofing contractor' },
+    { id: 'gutters',    icon: '🌧️', label: 'Gutters',             query: 'gutter installation' },
+    { id: 'siding',     icon: '🪵', label: 'Siding',              query: 'siding contractor' },
+    { id: 'windows',    icon: '🪟', label: 'Windows & Doors',      query: 'window and door company' },
+    { id: 'fencing',    icon: '🔩', label: 'Fencing',             query: 'fence contractor' },
+    { id: 'concrete',   icon: '🛤️', label: 'Concrete & Driveways', query: 'concrete contractor' },
+    { id: 'pressure',   icon: '💦', label: 'Pressure Washing',     query: 'pressure washing service' },
+    { id: 'paint_ext',  icon: '🎨', label: 'Exterior Painting',    query: 'exterior painting contractor' },
+  ]},
+  { label: 'Outdoor & Lawn', niches: [
+    { id: 'landscaping',icon: '🌿', label: 'Landscaping',         query: 'landscaping company' },
+    { id: 'lawn',       icon: '🌱', label: 'Lawn Care',           query: 'lawn care service' },
+    { id: 'tree',       icon: '🌳', label: 'Tree Service',        query: 'tree service company' },
+    { id: 'pool',       icon: '🏊', label: 'Pool & Spa',          query: 'pool service company' },
+    { id: 'irrigation', icon: '💧', label: 'Irrigation',          query: 'irrigation system installation' },
+  ]},
+  { label: 'Home Systems', niches: [
+    { id: 'hvac',       icon: '❄️', label: 'HVAC',                query: 'HVAC contractor' },
+    { id: 'plumbing',   icon: '🔧', label: 'Plumbing',            query: 'plumbing contractor' },
+    { id: 'electrical', icon: '⚡', label: 'Electrical',          query: 'electrician' },
+    { id: 'solar',      icon: '☀️', label: 'Solar',               query: 'solar panel installation' },
+    { id: 'insulation', icon: '🌡️', label: 'Insulation',          query: 'insulation contractor' },
+    { id: 'garage',     icon: '🚗', label: 'Garage Doors',        query: 'garage door company' },
+    { id: 'security',   icon: '🔐', label: 'Home Security',       query: 'home security company' },
+    { id: 'generator',  icon: '🔋', label: 'Generators',          query: 'generator installation' },
+  ]},
+  { label: 'Interior', niches: [
+    { id: 'paint_int',  icon: '🖌️', label: 'Interior Painting',   query: 'interior painting contractor' },
+    { id: 'flooring',   icon: '🟫', label: 'Flooring',            query: 'flooring company' },
+    { id: 'remodeling', icon: '🏡', label: 'Kitchen & Bath',      query: 'kitchen bathroom remodeling' },
+    { id: 'carpet',     icon: '🧶', label: 'Carpet Cleaning',     query: 'carpet cleaning service' },
+    { id: 'cleaning',   icon: '🧹', label: 'Home Cleaning',       query: 'house cleaning service' },
+    { id: 'countertop', icon: '🪨', label: 'Countertops',         query: 'countertop installation' },
+  ]},
+  { label: 'Repair & Restoration', niches: [
+    { id: 'handyman',   icon: '🔨', label: 'Handyman',            query: 'handyman service' },
+    { id: 'general',    icon: '🏗️', label: 'General Contractor',  query: 'general contractor' },
+    { id: 'pest',       icon: '🐛', label: 'Pest Control',        query: 'pest control service' },
+    { id: 'water',      icon: '🌊', label: 'Water Damage',        query: 'water damage restoration' },
+    { id: 'foundation', icon: '🏚️', label: 'Foundation Repair',   query: 'foundation repair company' },
+    { id: 'mold',       icon: '🟢', label: 'Mold Remediation',    query: 'mold remediation service' },
+    { id: 'chimney',    icon: '🔥', label: 'Chimney & Fireplace', query: 'chimney sweep service' },
+    { id: 'locksmith',  icon: '🗝️', label: 'Locksmith',           query: 'locksmith service' },
+    { id: 'moving',     icon: '📦', label: 'Moving Services',     query: 'moving company' },
+    { id: 'junk',       icon: '🗑️', label: 'Junk Removal',        query: 'junk removal service' },
+  ]},
+  { label: 'Auto Services', niches: [
+    { id: 'mechanic',   icon: '🔩', label: 'Auto Repair',         query: 'auto repair shop' },
+    { id: 'detailing',  icon: '✨', label: 'Car Detailing',        query: 'car detailing shop' },
+    { id: 'autobody',   icon: '🚙', label: 'Auto Body',           query: 'auto body shop' },
+    { id: 'carwash',    icon: '🫧', label: 'Car Wash',            query: 'car wash' },
+    { id: 'tires',      icon: '⭕', label: 'Tires & Wheels',      query: 'tire shop' },
+    { id: 'towing',     icon: '🚛', label: 'Towing',              query: 'towing service' },
+  ]},
+];
+
+const NICHE_MAP = {};
+NICHE_GROUPS.forEach(g => g.niches.forEach(n => NICHE_MAP[n.id] = n));
+
+// ── Regions ───────────────────────────────────────────────────────────────────
+const REGIONS = {
+  us: { "Alabama":4,"Alaska":2,"Arizona":8,"Arkansas":4,"California":15,"Colorado":7,"Connecticut":5,"Delaware":2,"Florida":16,"Georgia":8,"Hawaii":3,"Idaho":5,"Illinois":9,"Indiana":7,"Iowa":6,"Kansas":5,"Kentucky":5,"Louisiana":7,"Maine":4,"Maryland":7,"Massachusetts":8,"Michigan":12,"Minnesota":8,"Mississippi":5,"Missouri":7,"Montana":5,"Nebraska":5,"Nevada":5,"New Hampshire":4,"New Jersey":8,"New Mexico":5,"New York":10,"North Carolina":10,"North Dakota":4,"Ohio":10,"Oklahoma":7,"Oregon":7,"Pennsylvania":10,"Rhode Island":4,"South Carolina":6,"South Dakota":3,"Tennessee":7,"Texas":20,"Utah":7,"Vermont":3,"Virginia":10,"Washington":11,"West Virginia":4,"Wisconsin":8,"Wyoming":4 },
+  ca: { "Alberta":8,"British Columbia":12,"Manitoba":3,"New Brunswick":4,"Newfoundland & Labrador":3,"Northwest Territories":1,"Nova Scotia":4,"Nunavut":1,"Ontario":18,"Prince Edward Island":2,"Quebec":9,"Saskatchewan":4,"Yukon":1 },
+  au: { "Australian Capital Territory":2,"New South Wales":14,"Northern Territory":4,"Queensland":13,"South Australia":7,"Tasmania":5,"Victoria":12,"Western Australia":10 },
+  eu: { "Albania":5,"Andorra":2,"Austria":10,"Belarus":6,"Belgium":10,"Bosnia & Herzegovina":5,"Bulgaria":8,"Croatia":8,"Cyprus":5,"Czech Republic":10,"Denmark":10,"Estonia":5,"Finland":10,"France":25,"Germany":30,"Greece":10,"Hungary":10,"Iceland":4,"Ireland":10,"Italy":25,"Kosovo":5,"Latvia":6,"Liechtenstein":2,"Lithuania":6,"Luxembourg":4,"Malta":6,"Moldova":4,"Monaco":1,"Montenegro":5,"Netherlands":15,"North Macedonia":5,"Norway":10,"Poland":20,"Portugal":10,"Romania":15,"San Marino":2,"Serbia":9,"Slovakia":8,"Slovenia":7,"Spain":25,"Sweden":18,"Switzerland":12,"Ukraine":12,"United Kingdom":30 },
+};
+
+// ── Fake data for simulation ───────────────────────────────────────────────────
+const ADJECTIVES = ['Apex','Elite','Premier','Superior','Pro','Expert','Master','Prime','First Choice','Top','Reliable','Trusted','Quality','Professional','Certified','Precision','Dynasty','Legacy','Sterling','Pinnacle'];
+const SUFFIXES   = ['Co','Services','Solutions','Group','LLC','Pros','Works','Team','Contractors','Specialists'];
+
+function fakeBizName(nicheId) {
+  const n = NICHE_MAP[nicheId];
+  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+  const suf = SUFFIXES[Math.floor(Math.random() * SUFFIXES.length)];
+  return `${adj} ${n ? n.label : 'Home'} ${suf}`;
+}
+function fakePhone() {
+  const area = Math.floor(Math.random()*800)+200;
+  const mid  = Math.floor(Math.random()*900)+100;
+  const end  = Math.floor(Math.random()*9000)+1000;
+  return `(${area}) ${mid}-${end}`;
+}
+function fakeWebsite(name) {
+  return 'www.' + name.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,18) + '.com';
+}
+function fakeRating() { return (3.5 + Math.random() * 1.5).toFixed(1); }
+function fakeReviews() { return Math.floor(Math.random() * 400) + 5; }
+
+// ── App state ─────────────────────────────────────────────────────────────────
+let currentCountry    = 'us';
+let selectedNiches    = new Set(['roofing']);
+let selectedRegions   = new Set();
+let specificLocations = [];
+let acFocusIdx = -1, acResults = [];
+const sectionOpen = { niches: true, specific: true };
+
+// Scrape state
+let scrapeJobs      = [];
+let scrapeLeads     = [];
+let scrapeCancelled = false;
+let scrapeFinalCost = 0;
+
+// Results state
+let allLeads      = [];
+let sortCol       = 'rating';
+let sortDir       = -1;
+
+// ── View switching ─────────────────────────────────────────────────────────────
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.getElementById('nav-scraper').classList.toggle('active', name === 'config' || name === 'progress' || name === 'results');
+  document.getElementById('nav-instructions').classList.toggle('active', name === 'instructions');
+}
+
+// ── Instructions accordion ────────────────────────────────────────────────────
+function toggleInstr(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+}
+
+// ── Collapsible sections ──────────────────────────────────────────────────────
+function toggleSection(id) {
+  sectionOpen[id] = !sectionOpen[id];
+  document.getElementById('sec-' + id).classList.toggle('collapsed', !sectionOpen[id]);
+  document.getElementById('body-' + id).style.maxHeight = sectionOpen[id] ? (id === 'niches' ? '204px' : '200px') : '0';
+}
+
+// ── Niche rendering ───────────────────────────────────────────────────────────
+function renderNiches() {
+  const scroll = document.getElementById('niche-scroll');
+  scroll.innerHTML = '';
+  for (const group of NICHE_GROUPS) {
+    const div = document.createElement('div');
+    div.className = 'niche-group';
+    div.innerHTML = `<div class="niche-group-label">${group.label}</div>`;
+    const pills = document.createElement('div');
+    pills.className = 'niche-pills';
+    for (const n of group.niches) {
+      const btn = document.createElement('button');
+      btn.className = `niche-pill${selectedNiches.has(n.id) ? ' active' : ''}`;
+      btn.innerHTML = `<span class="ni">${n.icon}</span>${n.label}`;
+      btn.onclick = () => toggleNiche(n.id);
+      pills.appendChild(btn);
+    }
+    div.appendChild(pills);
+    scroll.appendChild(div);
+  }
+  const badge = document.getElementById('badge-niches');
+  const n = selectedNiches.size;
+  badge.textContent = n === 1 ? '1 niche' : `${n} niches`;
+  badge.classList.toggle('hidden', n === 0);
+  updateCost();
+}
+function toggleNiche(id) { selectedNiches.has(id) ? selectedNiches.delete(id) : selectedNiches.add(id); renderNiches(); }
+function selectAllNiches() { NICHE_GROUPS.forEach(g => g.niches.forEach(n => selectedNiches.add(n.id))); renderNiches(); }
+function clearNiches() { selectedNiches.clear(); renderNiches(); }
+
+// ── Country / region ──────────────────────────────────────────────────────────
+function setCountry(c) {
+  currentCountry = c;
+  ['us','ca','au','eu'].forEach(k => document.getElementById('btn-'+k).classList.toggle('active', k === c));
+  document.getElementById('filter').value = '';
+  renderGrid();
+}
+function renderGrid() {
+  const q = document.getElementById('filter').value.toLowerCase().trim();
+  const data = REGIONS[currentCountry];
+  const grid = document.getElementById('region-grid');
+  grid.className = currentCountry === 'eu' ? 'region-grid single-col' : 'region-grid';
+  const entries = Object.entries(data).filter(([name]) => !q || name.toLowerCase().includes(q));
+  if (!entries.length) { grid.innerHTML = `<div class="no-results">No regions match "${document.getElementById('filter').value}"</div>`; updateCost(); return; }
+  grid.innerHTML = '';
+  for (const [name, cityCount] of entries) {
+    const checked = selectedRegions.has(name);
+    const row = document.createElement('label');
+    row.className = `region-row${checked ? ' checked' : ''}`;
+    row.innerHTML = `<input type="checkbox" class="region-check" ${checked ? 'checked' : ''} onchange="toggleRegion('${name.replace(/'/g,"\\'")}', this.checked)" /><span class="region-name">${name}</span><span class="region-count">~${cityCount} cities</span>`;
+    grid.appendChild(row);
+  }
+  updateCost();
+}
+function toggleRegion(name, checked) {
+  checked ? selectedRegions.add(name) : selectedRegions.delete(name);
+  const badge = document.getElementById('badge-location');
+  const n = selectedRegions.size;
+  badge.textContent = n === 1 ? '1 region' : `${n} regions`;
+  badge.classList.toggle('hidden', n === 0);
+  renderGrid();
+}
+function selectAll() {
+  const q = document.getElementById('filter').value.toLowerCase().trim();
+  Object.keys(REGIONS[currentCountry]).forEach(n => { if (!q || n.toLowerCase().includes(q)) selectedRegions.add(n); });
+  renderGrid();
+}
+function clearRegions() { selectedRegions.clear(); document.getElementById('badge-location').classList.add('hidden'); renderGrid(); }
+
+// ── Autocomplete ──────────────────────────────────────────────────────────────
+function parseNominatim(results) {
+  const PLACE_TYPES = new Set(['city','town','village','suburb','neighbourhood','quarter','municipality','county','district','borough','city_district','hamlet','administrative']);
+  return results
+    .filter(r => PLACE_TYPES.has(r.type) || PLACE_TYPES.has(r.addresstype))
+    .map(r => {
+      const a = r.address || {};
+      const name = a.city || a.town || a.municipality || a.village || a.suburb || a.neighbourhood || a.quarter || r.name;
+      const region = a.state || a.province || a.county;
+      const parts = [region, a.country].filter(Boolean);
+      return { n: name || r.name, r: parts.join(', '), t: capitalize(r.addresstype || r.type) };
+    })
+    .filter((x, i, arr) => x.n && arr.findIndex(y => y.n === x.n && y.r === x.r) === i)
+    .slice(0, 6);
+}
+function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+let acTimer, acAbort;
+function onLocationInput() {
+  clearTimeout(acTimer);
+  const q = document.getElementById('location-input').value.trim();
+  if (q.length < 2) { closeDropdown(); setAcLoading(false); return; }
+  setAcLoading(true);
+  acTimer = setTimeout(async () => {
+    if (acAbort) acAbort.abort();
+    acAbort = new AbortController();
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=10&addressdetails=1`;
+      const res  = await fetch(url, { signal: acAbort.signal, headers: { 'Accept-Language': 'en' } });
+      const data = await res.json();
+      acResults  = parseNominatim(data);
+      setAcLoading(false);
+      renderDropdown();
+    } catch(e) { if (e.name !== 'AbortError') { setAcLoading(false); closeDropdown(); } }
+  }, 350);
+}
+function setAcLoading(on) {
+  document.getElementById('location-input').style.backgroundImage = on
+    ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' stroke='%2364748b' stroke-width='2' fill='none' stroke-dasharray='31.4' stroke-dashoffset='10'%3E%3CanimateTransform attributeName='transform' type='rotate' from='0 12 12' to='360 12 12' dur='.8s' repeatCount='indefinite'/%3E%3C/circle%3E%3C/svg%3E")`
+    : `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z'/%3E%3Ccircle cx='12' cy='10' r='3'/%3E%3C/svg%3E")`;
+}
+function repositionDropdown() { if (document.getElementById('ac-dropdown').classList.contains('open')) renderDropdown(); }
+function renderDropdown() {
+  const dd = document.getElementById('ac-dropdown');
+  if (!acResults.length) { closeDropdown(); return; }
+  const input = document.getElementById('location-input');
+  const rect  = input.getBoundingClientRect();
+  const estimatedH = acResults.length * 46 + 34;
+  const spaceBelow = window.innerHeight - rect.bottom - 8;
+  dd.style.left  = rect.left + 'px';
+  dd.style.width = rect.width + 'px';
+  if (spaceBelow < estimatedH && rect.top > spaceBelow) { dd.style.top = 'auto'; dd.style.bottom = (window.innerHeight - rect.top + 4) + 'px'; }
+  else { dd.style.top = (rect.bottom + 4) + 'px'; dd.style.bottom = 'auto'; }
+  acFocusIdx = -1;
+  dd.innerHTML = acResults.map((p, i) => `
+    <div class="ac-item" data-idx="${i}" onmousedown="selectPlace(${i})">
+      <span class="ac-icon">📍</span>
+      <div class="ac-main">
+        <div class="ac-name">${highlight(p.n, document.getElementById('location-input').value)}</div>
+        <div class="ac-sub">${p.r}</div>
+      </div>
+      <span class="ac-type">${p.t}</span>
+    </div>
+  `).join('') + `<div class="ac-footer"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Powered by OpenStreetMap</div>`;
+  dd.classList.add('open');
+}
+function highlight(text, q) {
+  if (!q) return text;
+  return text.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'), '<strong style="color:var(--text)">$1</strong>');
+}
+function onLocationKey(e) {
+  const dd = document.getElementById('ac-dropdown');
+  if (!dd.classList.contains('open')) return;
+  if (e.key==='ArrowDown') { acFocusIdx=Math.min(acFocusIdx+1,acResults.length-1); updateAcFocus(); e.preventDefault(); }
+  else if (e.key==='ArrowUp') { acFocusIdx=Math.max(acFocusIdx-1,-1); updateAcFocus(); e.preventDefault(); }
+  else if (e.key==='Enter' && acFocusIdx>=0) { selectPlace(acFocusIdx); e.preventDefault(); }
+  else if (e.key==='Escape') closeDropdown();
+}
+function updateAcFocus() { document.querySelectorAll('.ac-item').forEach((el,i) => el.classList.toggle('focused', i===acFocusIdx)); }
+function selectPlace(idx) {
+  const p = acResults[idx]; const id = `${p.n}::${p.r}`;
+  if (!specificLocations.find(x => x.id===id)) { specificLocations.push({id, name:p.n, region:p.r}); renderChips(); updateCost(); }
+  document.getElementById('location-input').value = '';
+  setAcLoading(false); closeDropdown();
+}
+function closeDropdown() { document.getElementById('ac-dropdown').classList.remove('open'); acResults=[]; acFocusIdx=-1; }
+document.addEventListener('click', e => { if (!e.target.closest('#location-input') && !e.target.closest('#ac-dropdown')) closeDropdown(); });
+window.addEventListener('resize', () => { if (document.getElementById('ac-dropdown').classList.contains('open')) renderDropdown(); });
+window.addEventListener('scroll', () => { if (document.getElementById('ac-dropdown').classList.contains('open')) renderDropdown(); }, true);
+
+function renderChips() {
+  document.getElementById('chips').innerHTML = specificLocations.map(l => `
+    <div class="chip">📍 ${l.name}<span style="opacity:.6;margin-left:3px;font-size:10px">${l.region}</span>
+      <button class="chip-remove" onclick="removeChip('${l.id.replace(/'/g,"\\'")}')">×</button>
+    </div>`).join('');
+  const badge = document.getElementById('badge-specific');
+  const n = specificLocations.length;
+  badge.textContent = n === 1 ? '1 city' : `${n} cities`;
+  badge.classList.toggle('hidden', n === 0);
+}
+function removeChip(id) { specificLocations = specificLocations.filter(x=>x.id!==id); renderChips(); updateCost(); }
+
+// ── Cost ──────────────────────────────────────────────────────────────────────
+function updateCost() {
+  let regionCities = 0;
+  selectedRegions.forEach(name => { for (const data of Object.values(REGIONS)) { if (data[name] != null) { regionCities += data[name]; break; } } });
+  const nicheCount  = selectedNiches.size;
+  const totalCities = regionCities + specificLocations.length;
+  const totalRuns   = totalCities * nicheCount;
+  const maxResults  = Math.min(parseInt(document.getElementById('max-results').value)||60, 60);
+  const pages       = maxResults <= 20 ? 1 : maxResults <= 40 ? 2 : 3;
+  const calls       = totalRuns * pages;
+  const cost        = calls * 0.032;
+  document.getElementById('s-niches').textContent  = nicheCount || '0';
+  document.getElementById('s-regions').textContent = selectedRegions.size || '0';
+  document.getElementById('s-cities').textContent  = totalCities ? `~${totalCities.toLocaleString()}` : '—';
+  document.getElementById('s-specific').textContent= specificLocations.length || '—';
+  document.getElementById('s-runs').textContent    = totalRuns ? totalRuns.toLocaleString() : '—';
+  document.getElementById('s-leads').textContent   = totalRuns ? `~${(totalRuns*10).toLocaleString()} – ${(totalRuns*60).toLocaleString()}` : '—';
+  document.getElementById('c-runs').textContent    = `${nicheCount} × ${totalCities}`;
+  document.getElementById('c-pages').textContent   = `${pages} page${pages>1?'s':''}`;
+  document.getElementById('c-calls').textContent   = calls.toLocaleString();
+  document.getElementById('c-total').textContent   = `$${cost.toFixed(2)}`;
+  const active = nicheCount > 0 && totalCities > 0;
+  document.getElementById('run-btn').disabled = !active;
+  document.getElementById('run-sub').textContent = !active
+    ? 'Select at least one niche and one region'
+    : `${nicheCount} niche${nicheCount>1?'s':''} × ${totalCities} cities · ${calls.toLocaleString()} API calls · $${cost.toFixed(2)} est.`;
+}
+
+// ── Scrape simulation ─────────────────────────────────────────────────────────
+function buildJobs() {
+  const jobs = [];
+  const maxResults = Math.min(parseInt(document.getElementById('max-results').value)||60, 60);
+  const pages = maxResults <= 20 ? 1 : maxResults <= 40 ? 2 : 3;
+
+  for (const nicheId of selectedNiches) {
+    // Region cities
+    for (const region of selectedRegions) {
+      let cityCount = 1;
+      for (const data of Object.values(REGIONS)) { if (data[region] != null) { cityCount = data[region]; break; } }
+      for (let c = 0; c < cityCount; c++) {
+        jobs.push({ nicheId, region, cityIdx: c + 1, cityTotal: cityCount, pages });
+      }
+    }
+    // Specific locations
+    for (const loc of specificLocations) {
+      jobs.push({ nicheId, region: loc.name, cityIdx: 1, cityTotal: 1, specificLoc: loc, pages });
+    }
+  }
+  return jobs;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function runScrape() {
+  scrapeJobs      = buildJobs();
+  scrapeLeads     = [];
+  scrapeCancelled = false;
+  allLeads        = [];
+
+  // Real-time speed: ~2s per city×niche. Simulate at 60ms per job.
+  const SIM_MS    = 60;
+  const REAL_MS   = 2000;
+
+  document.getElementById('prog-bar').style.width     = '0%';
+  document.getElementById('prog-pct').textContent     = '0%';
+  document.getElementById('prog-step').textContent    = 'Starting…';
+  document.getElementById('prog-eta').textContent     = 'Calculating…';
+  document.getElementById('prog-leads').textContent   = '0';
+  document.getElementById('prog-cost').textContent    = '$0.00';
+  document.getElementById('prog-cities-done').textContent = `0 / ${scrapeJobs.length}`;
+  document.getElementById('prog-feed').innerHTML      = '';
+  document.getElementById('prog-done-btn').classList.remove('visible');
+  document.getElementById('prog-cancel-btn').style.display = '';
+  document.getElementById('prog-spinner').style.display    = '';
+  document.getElementById('prog-title-text').textContent   = 'Scraping in progress…';
+  document.getElementById('prog-current').textContent      = 'Initializing…';
+
+  showView('progress');
+
+  let leadsFound  = 0;
+  let costSpent   = 0;
+  const startTime = Date.now();
+  const feedEl    = document.getElementById('prog-feed');
+
+  for (let i = 0; i < scrapeJobs.length; i++) {
+    if (scrapeCancelled) break;
+    await sleep(SIM_MS);
+
+    const job     = scrapeJobs[i];
+    const niche   = NICHE_MAP[job.nicheId];
+    const locName = job.specificLoc ? job.specificLoc.name : `${job.region} (city ${job.cityIdx} of ${job.cityTotal})`;
+
+    // Generate fake leads for this job
+    const newCount = Math.floor(Math.random() * 40) + 10;
+    costSpent += job.pages * 0.032;
+    leadsFound += newCount;
+
+    for (let l = 0; l < newCount; l++) {
+      const rating  = parseFloat(fakeRating());
+      const reviews = fakeReviews();
+      const name    = fakeBizName(job.nicheId);
+      allLeads.push({ name, niche: niche.label, nicheId: job.nicheId, location: locName, phone: fakePhone(), website: fakeWebsite(name), rating, reviews });
+    }
+
+    // Compute progress
+    const done    = i + 1;
+    const pct     = Math.round((done / scrapeJobs.length) * 100);
+    const elapsed = (Date.now() - startTime) / 1000;
+    const ratePerSec = done / elapsed;
+    const remainingJobs = scrapeJobs.length - done;
+    // ETA based on real-world timing, not simulation speed
+    const etaSec  = Math.round((remainingJobs * REAL_MS) / 1000);
+    const etaStr  = etaSec < 60 ? `~${etaSec}s remaining` : `~${Math.ceil(etaSec/60)} min remaining`;
+
+    document.getElementById('prog-bar').style.width          = pct + '%';
+    document.getElementById('prog-pct').textContent          = pct + '%';
+    document.getElementById('prog-step').textContent         = `Job ${done} of ${scrapeJobs.length}`;
+    document.getElementById('prog-eta').textContent          = done === scrapeJobs.length ? 'Almost done!' : etaStr;
+    document.getElementById('prog-current').textContent      = `${niche.icon} ${niche.label} · ${locName}`;
+    document.getElementById('prog-leads').textContent        = leadsFound.toLocaleString();
+    document.getElementById('prog-cost').textContent         = '$' + costSpent.toFixed(2);
+    document.getElementById('prog-cities-done').textContent  = `${done} / ${scrapeJobs.length}`;
+
+    // Add up to 3 random leads to the live feed
+    const feedSample = allLeads.slice(-newCount).slice(0, 3);
+    feedSample.forEach(lead => {
+      const item = document.createElement('div');
+      item.className = 'feed-item';
+      item.innerHTML = `<span style="color:var(--green);font-size:11px">✓</span><span class="feed-name">${lead.name}</span><span class="feed-loc">${lead.location}</span><span class="feed-stars">⭐ ${lead.rating}</span>`;
+      feedEl.insertBefore(item, feedEl.firstChild);
+      if (feedEl.children.length > 6) feedEl.lastChild.remove();
+    });
+  }
+
+  scrapeFinalCost = costSpent;
+
+  // Done state
+  document.getElementById('prog-spinner').style.display   = 'none';
+  document.getElementById('prog-cancel-btn').style.display= 'none';
+  document.getElementById('prog-title-text').textContent  = scrapeCancelled ? 'Scrape cancelled' : '✓ Scrape complete!';
+  document.getElementById('prog-pct').textContent         = scrapeCancelled ? '—' : '100%';
+  document.getElementById('prog-bar').style.width         = scrapeCancelled ? document.getElementById('prog-bar').style.width : '100%';
+  document.getElementById('prog-step').textContent        = scrapeCancelled ? 'Cancelled by user' : `${scrapeJobs.length} jobs complete`;
+  document.getElementById('prog-eta').textContent         = scrapeCancelled ? '' : 'Done!';
+  document.getElementById('prog-done-btn').classList.add('visible');
+  document.getElementById('prog-done-btn').textContent    = `View ${allLeads.length.toLocaleString()} Results →`;
+}
+
+function cancelScrape() { scrapeCancelled = true; }
+
+// ── Results ───────────────────────────────────────────────────────────────────
+function showResults() {
+  // Populate niche filter
+  const nicheFilter = document.getElementById('res-niche-filter');
+  nicheFilter.innerHTML = '<option value="">All niches</option>';
+  [...selectedNiches].forEach(id => {
+    const n = NICHE_MAP[id];
+    if (n) nicheFilter.innerHTML += `<option value="${id}">${n.label}</option>`;
+  });
+
+  document.getElementById('res-total').textContent      = allLeads.length.toLocaleString();
+  document.getElementById('res-niches-count').textContent = selectedNiches.size;
+  document.getElementById('res-cost-final').textContent = '$' + scrapeFinalCost.toFixed(2);
+
+  document.getElementById('res-search').value      = '';
+  document.getElementById('res-niche-filter').value = '';
+  document.getElementById('res-rating-filter').value= '';
+
+  renderTable(allLeads);
+  showView('results');
+}
+
+function filterResults() {
+  const q      = document.getElementById('res-search').value.toLowerCase().trim();
+  const niche  = document.getElementById('res-niche-filter').value;
+  const minRat = parseFloat(document.getElementById('res-rating-filter').value) || 0;
+  const filtered = allLeads.filter(l =>
+    (!q || l.name.toLowerCase().includes(q) || l.location.toLowerCase().includes(q)) &&
+    (!niche || l.nicheId === niche) &&
+    (l.rating >= minRat)
+  );
+  renderTable(filtered);
+}
+
+function renderTable(leads) {
+  const sorted = [...leads].sort((a, b) => {
+    const va = a[sortCol], vb = b[sortCol];
+    return typeof va === 'string' ? va.localeCompare(vb) * sortDir : (va - vb) * sortDir;
+  });
+  document.getElementById('res-count').textContent = `Showing ${sorted.length.toLocaleString()} of ${allLeads.length.toLocaleString()} leads`;
+
+  // Add Owner column header only after enrichment
+  const thead = document.querySelector('.res-table thead tr');
+  if (enriched && !document.getElementById('th-owner')) {
+    thead.insertAdjacentHTML('beforeend', '<th id="th-owner">Owner Name</th>');
+  }
+  const colspan = enriched ? 9 : 8;
+
+  document.getElementById('res-tbody').innerHTML = sorted.length === 0
+    ? `<tr><td colspan="${colspan}" class="no-data">No leads match your filters.</td></tr>`
+    : sorted.map(l => `
+      <tr>
+        <td class="td-name">${l.name}</td>
+        <td><span class="td-niche">${l.niche}</span></td>
+        <td class="td-muted">${l.location}</td>
+        <td class="td-muted">${l.phone}</td>
+        <td class="td-muted" style="font-size:12px">${l.email || '<span style="color:var(--border2)">—</span>'}</td>
+        <td><a class="td-link" href="https://${l.website}" target="_blank">${l.website}</a></td>
+        <td>
+          <div class="td-rating">
+            <span class="td-stars">⭐</span>
+            <span class="td-rating-val">${l.rating}</span>
+          </div>
+        </td>
+        <td class="td-reviews">${l.reviews.toLocaleString()}</td>
+        ${enriched ? `<td class="td-muted" style="font-size:12px">${l.ownerName || '<span style="color:var(--border2)">—</span>'}</td>` : ''}
+      </tr>`).join('');
+}
+
+function sortResults(col) {
+  if (sortCol === col) { sortDir *= -1; } else { sortCol = col; sortDir = -1; }
+  document.querySelectorAll('.res-table th').forEach(th => th.classList.remove('sorted'));
+  filterResults();
+}
+
+// ── CSV download ──────────────────────────────────────────────────────────────
+function downloadCSV() {
+  const q      = document.getElementById('res-search').value.toLowerCase().trim();
+  const niche  = document.getElementById('res-niche-filter').value;
+  const minRat = parseFloat(document.getElementById('res-rating-filter').value) || 0;
+  const leads  = allLeads.filter(l =>
+    (!q || l.name.toLowerCase().includes(q) || l.location.toLowerCase().includes(q)) &&
+    (!niche || l.nicheId === niche) &&
+    (l.rating >= minRat)
+  );
+  const header = enriched
+    ? ['Business Name','Niche','Location','Phone','Email','Website','Rating','Reviews','Owner Name']
+    : ['Business Name','Niche','Location','Phone','Email','Website','Rating','Reviews'];
+  const rows   = leads.map(l => {
+    const base = [l.name, l.niche, l.location, l.phone, l.email || '', l.website, l.rating, l.reviews];
+    if (enriched) { base.push(l.ownerName || ''); }
+    return base.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+  });
+  const csv    = [header.join(','), ...rows].join('\n');
+  const blob   = new Blob([csv], { type: 'text/csv' });
+  const url    = URL.createObjectURL(blob);
+  const a      = document.createElement('a');
+  a.href = url; a.download = `launchpad-leads-${Date.now()}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Demo results ──────────────────────────────────────────────────────────────
+function loadDemoResults() {
+  enriched = false;
+  const btn = document.getElementById('enrich-btn');
+  if (btn) { btn.disabled = false; btn.classList.remove('running'); btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Find Owner Names'; btn.style.cssText = ''; }
+  const to = document.getElementById('th-owner');
+  if (to) to.remove();
+
+  const demoNiches = [
+    { id: 'roofing',    label: 'Roofing',    emoji: '🏠' },
+    { id: 'plumbing',   label: 'Plumbing',   emoji: '🔧' },
+    { id: 'hvac',       label: 'HVAC',       emoji: '❄️' },
+    { id: 'electrical', label: 'Electrical', emoji: '⚡' },
+    { id: 'landscaping',label: 'Landscaping',emoji: '🌿' },
+  ];
+  const cities = ['Austin, TX','Denver, CO','Phoenix, AZ','Nashville, TN','Charlotte, NC','Tampa, FL','Atlanta, GA','Dallas, TX','Seattle, WA','Portland, OR'];
+  const phones = ['(512) 555-','(720) 555-','(480) 555-','(615) 555-','(704) 555-'];
+  const domains = ['proservices','eliteroofing','aceplumbing','firstchoice','reliablehvac','primeelectric','greenscapes','topnotch','premiercare','citywide'];
+
+  const prefixes = ['A-1','Apex','Pro','Elite','Prime','City','Metro','Eagle','Summit','Valor'];
+  const suffixes = ['Services','Co.','Pros','Group','Solutions','LLC','Inc.','Team','Works','Experts'];
+  const localParts = ['info','contact','hello','office','service','jobs','admin','team','support','main'];
+
+  allLeads = Array.from({ length: 40 }, (_, i) => {
+    const n   = demoNiches[i % demoNiches.length];
+    const city = cities[i % cities.length];
+    const dom  = domains[i % domains.length] + (i > 9 ? i : '') + '.com';
+    const hasEmail = i % 2 === 0 || i % 7 === 1; // ~55% hit rate
+    return {
+      name:     `${prefixes[i%10]} ${n.label} ${suffixes[i%10]}`,
+      niche:    `${n.emoji} ${n.label}`,
+      nicheId:  n.id,
+      location: city,
+      phone:    phones[i % phones.length] + String(1000 + i * 37).slice(1),
+      email:    hasEmail ? `${localParts[i%10]}@${dom}` : '',
+      website:  dom,
+      rating:   Math.round((3.8 + Math.random() * 1.2) * 10) / 10,
+      reviews:  Math.floor(20 + Math.random() * 480),
+    };
+  });
+
+  selectedNiches = new Set(demoNiches.map(n => n.id));
+  scrapeFinalCost = 1.28;
+
+  document.getElementById('res-total').textContent       = allLeads.length;
+  document.getElementById('res-niches-count').textContent = demoNiches.length;
+  document.getElementById('res-cost-final').textContent  = '$1.28';
+  document.getElementById('res-search').value            = '';
+  document.getElementById('res-niche-filter').value      = '';
+  document.getElementById('res-rating-filter').value     = '';
+
+  const nicheFilter = document.getElementById('res-niche-filter');
+  nicheFilter.innerHTML = '<option value="">All niches</option>';
+  demoNiches.forEach(n => { nicheFilter.innerHTML += `<option value="${n.id}">${n.emoji} ${n.label}</option>`; });
+
+  renderTable(allLeads);
+  showView('results');
+}
+
+// ── Enrichment ────────────────────────────────────────────────────────────────
+let enriched = false;
+
+function openEnrichModal() {
+  document.getElementById('enrich-modal').classList.remove('hidden');
+}
+function closeEnrichModal() {
+  document.getElementById('enrich-modal').classList.add('hidden');
+}
+
+function runEnrichment() {
+  if (enriched) return;
+  const btn = document.getElementById('enrich-btn');
+  btn.classList.add('running');
+  btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg> Searching…';
+  btn.disabled = true;
+
+  // Simulate owner name search: ~30% hit rate from website scraping
+  setTimeout(() => {
+    const firstNames = ['Mike','James','David','Chris','John','Ryan','Kevin','Brian','Scott','Eric','Tony','Mark'];
+    const lastNames  = ['Johnson','Williams','Davis','Miller','Wilson','Moore','Taylor','Anderson','Thomas','Harris'];
+    allLeads.forEach(l => {
+      if (Math.random() < 0.31) {
+        l.ownerName = `${firstNames[Math.floor(Math.random()*firstNames.length)]} ${lastNames[Math.floor(Math.random()*lastNames.length)]}`;
+      }
+    });
+    enriched = true;
+    btn.innerHTML = '✓ Owners Found';
+    btn.style.background = 'var(--green-bg)';
+    btn.style.borderColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+
+    // Re-render table to show new columns
+    filterResults();
+  }, 2200);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+renderNiches();
+renderGrid();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SUPABASE AUTH
+// ══════════════════════════════════════════════════════════════════════════════
+const SUPABASE_URL      = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const BACKEND_URL       = 'YOUR_VPS_URL'; // e.g. https://api.localleads.golaunchpad.co
+
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let _pendingVerifyEmail = '';
+
+// ── Boot: check session ──────────────────────────────────────────────────────
+(async () => {
+  const { data: { session } } = await _sb.auth.getSession();
+  if (session) {
+    showApp(session.user);
+  } else {
+    showAuthScreen();
+  }
+  _sb.auth.onAuthStateChange((_event, session) => {
+    if (session) showApp(session.user);
+    else showAuthScreen();
+  });
+})();
+
+function showApp(user) {
+  document.getElementById('auth-screen').classList.remove('visible');
+  document.getElementById('app').classList.add('visible');
+  document.getElementById('nav-user-email').textContent = user.email;
+}
+
+function showAuthScreen() {
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('auth-screen').classList.add('visible');
+}
+
+// ── Tab switching ────────────────────────────────────────────────────────────
+function switchAuthTab(tab) {
+  document.getElementById('auth-main').style.display = '';
+  document.getElementById('auth-verify').style.display = 'none';
+  ['login','signup','forgot'].forEach(t => {
+    document.getElementById('form-' + t).classList.toggle('visible', t === tab);
+  });
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+  clearAuthErrors();
+}
+
+function showForgot() {
+  ['login','signup','forgot'].forEach(t => {
+    document.getElementById('form-' + t).classList.toggle('visible', t === 'forgot');
+  });
+  document.getElementById('tab-login').classList.remove('active');
+  document.getElementById('tab-signup').classList.remove('active');
+}
+
+function clearAuthErrors() {
+  ['login-error','signup-error','forgot-error','otp-error'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = ''; el.classList.remove('visible'); }
+  });
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+
+// ── Sign Up ──────────────────────────────────────────────────────────────────
+async function doSignup() {
+  clearAuthErrors();
+  const email    = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const confirm  = document.getElementById('signup-confirm').value;
+
+  if (!email) return showError('signup-error', 'Please enter your email.');
+  if (password.length < 8) return showError('signup-error', 'Password must be at least 8 characters.');
+  if (password !== confirm) return showError('signup-error', 'Passwords don\'t match.');
+
+  const btn = document.getElementById('signup-btn');
+  btn.disabled = true; btn.textContent = 'Creating account…';
+
+  const { error } = await _sb.auth.signUp({ email, password });
+  btn.disabled = false; btn.textContent = 'Create Account';
+
+  if (error) return showError('signup-error', error.message);
+
+  _pendingVerifyEmail = email;
+  document.getElementById('verify-email-label').textContent = email;
+  document.getElementById('auth-main').style.display = 'none';
+  document.getElementById('auth-verify').style.display = '';
+  document.getElementById('otp-inputs').querySelectorAll('input')[0].focus();
+}
+
+// ── OTP input helpers ────────────────────────────────────────────────────────
+function otpMove(el, idx) {
+  el.value = el.value.replace(/\D/g, '').slice(-1);
+  const inputs = document.getElementById('otp-inputs').querySelectorAll('input');
+  if (el.value && idx < 5) inputs[idx + 1].focus();
+  if (getOtpValue().length === 6) doVerify();
+}
+function otpBack(e, idx) {
+  const inputs = document.getElementById('otp-inputs').querySelectorAll('input');
+  if (e.key === 'Backspace' && !inputs[idx].value && idx > 0) inputs[idx - 1].focus();
+}
+function getOtpValue() {
+  return Array.from(document.getElementById('otp-inputs').querySelectorAll('input')).map(i => i.value).join('');
+}
+
+// ── Verify OTP ───────────────────────────────────────────────────────────────
+async function doVerify() {
+  clearAuthErrors();
+  const token = getOtpValue();
+  if (token.length < 6) return showError('otp-error', 'Enter all 6 digits.');
+
+  const btn = document.getElementById('otp-btn');
+  btn.disabled = true; btn.textContent = 'Verifying…';
+
+  const { error } = await _sb.auth.verifyOtp({
+    email: _pendingVerifyEmail,
+    token,
+    type: 'signup',
+  });
+
+  btn.disabled = false; btn.textContent = 'Verify Email';
+  if (error) return showError('otp-error', error.message);
+  // onAuthStateChange fires → showApp() called automatically
+}
+
+async function doResend() {
+  await _sb.auth.resend({ type: 'signup', email: _pendingVerifyEmail });
+  showError('otp-error', ''); // clear errors
+  const el = document.getElementById('otp-error');
+  el.style.color = 'var(--green)'; el.textContent = 'Code resent!'; el.classList.add('visible');
+  setTimeout(() => { el.classList.remove('visible'); el.style.color = ''; }, 3000);
+}
+
+// ── Sign In ──────────────────────────────────────────────────────────────────
+async function doLogin() {
+  clearAuthErrors();
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  if (!email || !password) return showError('login-error', 'Please enter your email and password.');
+
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+
+  const { error } = await _sb.auth.signInWithPassword({ email, password });
+  btn.disabled = false; btn.textContent = 'Sign In';
+
+  if (error) return showError('login-error', error.message);
+  // onAuthStateChange → showApp()
+}
+
+// ── Forgot Password ──────────────────────────────────────────────────────────
+async function doForgot() {
+  clearAuthErrors();
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!email) return showError('forgot-error', 'Please enter your email.');
+  await _sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+  document.getElementById('forgot-success').classList.add('visible');
+}
+
+// ── Sign Out ─────────────────────────────────────────────────────────────────
+async function doSignOut() {
+  await _sb.auth.signOut();
+}
+
+// ── API Key modal ─────────────────────────────────────────────────────────────
+function openApiKeyModal() {
+  document.getElementById('apikey-saved').classList.remove('visible');
+  document.getElementById('apikey-error').classList.remove('visible');
+  document.getElementById('apikey-modal').classList.remove('hidden');
+  loadApiKey();
+}
+function closeApiKeyModal() {
+  document.getElementById('apikey-modal').classList.add('hidden');
+}
+
+async function loadApiKey() {
+  const { data: { user } } = await _sb.auth.getUser();
+  if (!user) return;
+  const { data } = await _sb.from('user_settings').select('api_key').eq('user_id', user.id).maybeSingle();
+  if (data?.api_key) {
+    const masked = data.api_key.slice(0, 4) + '••••••••••••••••' + data.api_key.slice(-4);
+    document.getElementById('apikey-input').placeholder = masked;
+  }
+}
+
+async function saveApiKey() {
+  const key = document.getElementById('apikey-input').value.trim();
+  if (!key) return;
+
+  const { data: { user } } = await _sb.auth.getUser();
+  const { error } = await _sb.from('user_settings').upsert({ user_id: user.id, api_key: key }, { onConflict: 'user_id' });
+
+  if (error) {
+    const el = document.getElementById('apikey-error');
+    el.textContent = error.message; el.classList.add('visible');
+    return;
+  }
+  document.getElementById('apikey-input').value = '';
+  document.getElementById('apikey-input').placeholder = key.slice(0,4) + '••••••••••••••••' + key.slice(-4);
+  document.getElementById('apikey-saved').classList.add('visible');
+}
+</script>
+
+<!-- API Key modal -->
+<div class="modal-overlay hidden" id="apikey-modal" onclick="if(event.target===this)closeApiKeyModal()">
+  <div class="modal-box">
+    <div class="modal-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-h)" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Your Google Places API Key
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:14px">This key is stored privately in your account — no one else can see or use it. Google Maps charges go directly to your Google account, not ours.</p>
+      <div class="apikey-field">
+        <input class="apikey-input" id="apikey-input" type="password" placeholder="Paste your API key here…" />
+        <button class="apikey-save" onclick="saveApiKey()">Save</button>
+      </div>
+      <div class="apikey-saved" id="apikey-saved">✓ API key saved</div>
+      <div class="auth-error" id="apikey-error" style="margin-top:10px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-close" onclick="closeApiKeyModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Enrich Leads modal -->
+<div class="modal-overlay hidden" id="enrich-modal" onclick="if(event.target===this)closeEnrichModal()">
+  <div class="modal-box">
+    <div class="modal-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-h)" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Find Owner Names
+    </div>
+    <div class="modal-body">
+      <p>When you click <strong>Find Owner Names</strong>, the app visits each business's website and tries to identify who owns or runs the company — completely free, no paid APIs involved.</p>
+      <p style="margin-top:10px">It scans the contact page, about page, and team page, looking for patterns like "Founded by John Smith" or "Owner: Sarah Lee" to pull out a real name.</p>
+      <p style="margin-top:10px"><strong>Heads up on accuracy:</strong> Owner names are found on about 25–35% of leads. Plenty of businesses don't list this publicly, so many will come back blank — that's expected.</p>
+      <p style="margin-top:10px">Any owner names found will appear as a new column in the table and will be included when you download your CSV.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-close" onclick="closeEnrichModal()">Got it</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /#app -->
+
+</body>
+</html>
