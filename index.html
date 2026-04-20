@@ -48,11 +48,11 @@
 
     /* Collapsible section chrome */
     .col-sec { border-bottom: 1px solid var(--border); flex-shrink: 0; }
-    .col-header { display: flex; align-items: center; gap: 7px; padding: 0 20px; min-height: 40px; cursor: pointer; user-select: none; transition: background .12s; }
-    .col-header:hover { background: rgba(255,255,255,0.02); }
-    .col-header.static { cursor: default; }
-    .col-header.static:hover { background: transparent; }
-    .col-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+    .col-header { display: flex; align-items: center; gap: 8px; padding: 0 16px; min-height: 44px; cursor: pointer; user-select: none; transition: background .12s; background: rgba(255,255,255,0.025); border-bottom: 1px solid var(--border); }
+    .col-header:hover:not(.static) { background: rgba(255,255,255,0.045); }
+    .col-header.static { cursor: default; background: rgba(255,255,255,0.025); border-bottom: 1px solid var(--border); }
+    .col-title { font-size: 12px; font-weight: 600; color: var(--text); letter-spacing: -0.1px; }
+    .sec-num { width: 20px; height: 20px; border-radius: 6px; background: var(--accent-bg); border: 1px solid rgba(99,102,241,0.35); color: var(--accent-h); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .col-badge { font-size: 10px; font-weight: 600; background: var(--accent-bg); color: var(--accent-h); border: 1px solid rgba(99,102,241,.3); border-radius: 4px; padding: 1px 7px; white-space: nowrap; }
     .col-badge.hidden { display: none; }
     .col-spacer { flex: 1; }
@@ -60,15 +60,16 @@
     .sec-micro:hover { color: var(--text); border-color: var(--accent); }
     .col-chevron { color: var(--muted); transition: transform .2s ease; flex-shrink: 0; }
     .col-sec.collapsed .col-chevron { transform: rotate(-90deg); }
-    .col-body { overflow: hidden; transition: max-height .22s ease; }
-    .col-sec.collapsed .col-body { max-height: 0 !important; }
+    .col-body { overflow-y: auto; transition: max-height .22s ease; }
+    .col-body::-webkit-scrollbar { width: 3px; }
+    .col-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+    .col-sec.collapsed .col-body { overflow: hidden; max-height: 0 !important; }
     .niche-inner { padding: 2px 20px 14px; }
     .specific-inner { padding: 8px 20px 14px; }
 
     /* Niche pills */
-    .niche-scroll { max-height: 180px; overflow-y: auto; }
-    .niche-scroll::-webkit-scrollbar { width: 3px; }
-    .niche-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+    .niche-scroll { overflow: visible; }
+    .niche-scroll::-webkit-scrollbar { display: none; }
     .niche-group { margin-bottom: 10px; }
     .niche-group-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--border2); margin-bottom: 6px; }
     .niche-pills { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -474,6 +475,7 @@
     <!-- 1. Service Type (collapsible) -->
     <div class="col-sec" id="sec-niches">
       <div class="col-header" onclick="toggleSection('niches')">
+        <span class="sec-num">1</span>
         <span class="col-title">Service Type</span>
         <span class="col-badge hidden" id="badge-niches"></span>
         <span class="col-spacer"></span>
@@ -494,6 +496,7 @@
     <!-- 2. Location -->
     <div class="loc-section" id="sec-location">
       <div class="col-header static">
+        <span class="sec-num">2</span>
         <span class="col-title">Location</span>
         <span class="col-badge hidden" id="badge-location"></span>
         <span class="col-spacer"></span>
@@ -520,6 +523,7 @@
     <!-- 3. Specific Location (collapsible) -->
     <div class="col-sec" id="sec-specific">
       <div class="col-header" onclick="toggleSection('specific')">
+        <span class="sec-num">3</span>
         <span class="col-title">Specific Location</span>
         <span class="opt-badge">optional</span>
         <span class="col-badge hidden" id="badge-specific"></span>
@@ -1740,15 +1744,15 @@ function runEnrichment() {
         const newBot = Math.max(MIN, startBotH - dy);
         topEl.style.height = newTop + 'px';
         botEl.style.height = newBot + 'px';
-        // Keep col-body max-height in sync for collapsible sections
-        if (topBodyId) {
-          const bodyEl = document.getElementById(topBodyId);
-          if (bodyEl) bodyEl.style.maxHeight = (newTop - 40) + 'px';
-        }
+        // Sync body max-height so content fills the section
+        const topBody = topEl.querySelector('.col-body');
+        if (topBody) { topBody.style.transition = 'none'; topBody.style.maxHeight = (newTop - 44) + 'px'; }
         if (botBodyId) {
           const bodyEl = document.getElementById(botBodyId);
-          if (bodyEl) bodyEl.style.maxHeight = (newBot - 40) + 'px';
+          if (bodyEl) { bodyEl.style.transition = 'none'; bodyEl.style.maxHeight = (newBot - 44) + 'px'; }
         }
+        const botBody = botEl.querySelector('.col-body');
+        if (botBody && !botBodyId) { botBody.style.transition = 'none'; botBody.style.maxHeight = (newBot - 44) + 'px'; }
       }
 
       function onUp() {
@@ -1763,7 +1767,7 @@ function runEnrichment() {
     });
   }
 
-  initHandle('rh-1', 'sec-niches',   'sec-location', 'body-niches', null);
+  initHandle('rh-1', 'sec-niches',   'sec-location', null, null);
   initHandle('rh-2', 'sec-location', 'sec-specific', null, 'body-specific');
 })();
 
