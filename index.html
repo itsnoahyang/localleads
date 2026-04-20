@@ -358,6 +358,16 @@
     .nav-signout { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--muted2); cursor: pointer; font-size: 12px; font-weight: 500; transition: all .15s; }
     .nav-signout:hover { color: var(--text); border-color: var(--border2); }
 
+    /* ── LaunchPad branding ── */
+    .lp-badge { display: inline-flex; align-items: center; background: #fff; border-radius: 6px; padding: 2px 8px 2px 4px; gap: 0; height: 22px; }
+    .lp-badge img { height: 16px; width: auto; display: block; }
+    .auth-powered { display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 20px; font-size: 11px; color: var(--muted); }
+    .auth-powered .lp-badge { height: 26px; padding: 3px 10px 3px 6px; border-radius: 8px; }
+    .auth-powered .lp-badge img { height: 18px; }
+    .nav-lp { display: flex; align-items: center; }
+    .nav-lp .lp-badge { height: 20px; padding: 1px 6px 1px 3px; border-radius: 5px; }
+    .nav-lp .lp-badge img { height: 14px; }
+
     /* ══ MOBILE ════════════════════════════════════════════════════ */
     @media (max-width: 768px) {
 
@@ -523,15 +533,24 @@
       </div>
     </div>
   </div>
+  <div class="auth-powered">
+    <span>Powered by</span>
+    <span class="lp-badge"><img src="logo.png" alt="LaunchPad AI" /></span>
+  </div>
 </div>
 
 <!-- ══ MAIN APP (shown after login) ══════════════════════════ -->
 <div id="app">
 
 <nav class="nav">
-  <div class="nav-logo" onclick="showView('config')" style="cursor:pointer;">
-    <div class="logo-icon">⚡</div>
-    LocalLeads
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div class="nav-logo" onclick="showView('config')" style="cursor:pointer;">
+      <div class="logo-icon">⚡</div>
+      LocalLeads
+    </div>
+    <div class="nav-lp">
+      <span class="lp-badge"><img src="logo.png" alt="LaunchPad AI" /></span>
+    </div>
   </div>
   <div style="display:flex;align-items:center;gap:4px;margin:0 auto;">
     <button class="nav-link active" id="nav-scraper" onclick="showView('config')">Scraper</button>
