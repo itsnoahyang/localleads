@@ -1715,17 +1715,26 @@ const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let _pendingVerifyEmail = '';
 
 // ── Boot: check session ──────────────────────────────────────────────────────
+const _supabaseReady = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
+
 (async () => {
-  const { data: { session } } = await _sb.auth.getSession();
-  if (session) {
-    showApp(session.user);
-  } else {
-    showAuthScreen();
+  if (!_supabaseReady) {
+    // Supabase not configured yet — show app in demo mode
+    document.getElementById('nav-user-email').textContent = 'demo@localleads.co';
+    showApp({ email: 'demo@localleads.co' });
+    return;
   }
-  _sb.auth.onAuthStateChange((_event, session) => {
+  try {
+    const { data: { session } } = await _sb.auth.getSession();
     if (session) showApp(session.user);
     else showAuthScreen();
-  });
+    _sb.auth.onAuthStateChange((_event, session) => {
+      if (session) showApp(session.user);
+      else showAuthScreen();
+    });
+  } catch (e) {
+    showAuthScreen();
+  }
 })();
 
 function showApp(user) {
